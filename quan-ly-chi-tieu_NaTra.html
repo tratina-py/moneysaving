@@ -1,0 +1,2767 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Chi Tiêu Thông Minh</title>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800&family=Sora:wght@700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<!-- Google Identity Services (Google Sign-In) -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<!-- Firebase -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, doc, setDoc, getDocs, deleteDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDJesiFJ-Jpdud8pRVthW5vgJ7gMYYGhfw",
+  authDomain: "money-save-78286.firebaseapp.com",
+  projectId: "money-save-78286",
+  storageBucket: "money-save-78286.firebasestorage.app",
+  messagingSenderId: "409757000256",
+  appId: "1:409757000256:web:bbad2b3d643d60d5d535a5",
+  measurementId: "G-HXXWMRXZFY"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// Expose DB helpers to global scope
+window._db = db;
+window._fbLib = { collection, doc, setDoc, getDocs, deleteDoc, onSnapshot, query, orderBy };
+
+// Signal app that Firebase is ready
+window.dispatchEvent(new Event('firebase-ready'));
+</script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0a0e1a;
+  --surface: #111827;
+  --surface2: #1a2235;
+  --surface3: #212d43;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.12);
+  --accent: #34d399;
+  --accent2: #10b981;
+  --accent-glow: rgba(52,211,153,0.12);
+  --red: #f87171;
+  --red-glow: rgba(248,113,113,0.12);
+  --amber: #fbbf24;
+  --blue: #60a5fa;
+  --purple: #a78bfa;
+  --text: #f1f5f9;
+  --text2: #cbd5e1;
+  --muted: #94a3b8;
+  --muted2: #64748b;
+  --radius: 16px;
+  --radius-sm: 10px;
+  --radius-xs: 7px;
+  --nav-h: 68px;
+  --header-h: 60px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html { height: 100%; }
+body {
+  font-family: 'Be Vietnam Pro', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100%;
+  line-height: 1.6;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+/* ── LOADING SCREEN ── */
+#loading-screen {
+  position: fixed; inset: 0; background: var(--bg);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  z-index: 9999; gap: 20px;
+  transition: opacity 0.4s;
+}
+#loading-screen.hide { opacity: 0; pointer-events: none; }
+.loader-icon { font-size: 48px; animation: pulse 1.5s infinite; }
+.loader-text { font-size: 15px; color: var(--muted); }
+.loader-spinner {
+  width: 36px; height: 36px;
+  border: 3px solid var(--border2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.1)} }
+
+/* ── APP SHELL ── */
+.app {
+  display: flex;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* ── DESKTOP SIDEBAR ── */
+.sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 24px 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+.logo {
+  padding: 0 20px 20px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 12px;
+}
+.logo-icon {
+  width: 40px; height: 40px;
+  background: var(--accent-glow);
+  border: 1px solid rgba(52,211,153,0.25);
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 10px; font-size: 20px;
+}
+.logo h1 {
+  font-family: 'Sora', sans-serif;
+  font-size: 15px; color: var(--text); line-height: 1.25;
+}
+.logo p { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+.nav-section { padding: 0 10px; flex: 1; overflow-y: auto; }
+.nav-label {
+  font-size: 9.5px; font-weight: 700; color: var(--muted2);
+  letter-spacing: 1.2px; text-transform: uppercase;
+  padding: 0 8px; margin: 14px 0 5px;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 10px; border-radius: var(--radius-sm);
+  cursor: pointer; font-size: 13.5px; color: var(--muted);
+  transition: all 0.15s; border: 1px solid transparent; margin-bottom: 2px;
+}
+.nav-item:hover { background: rgba(255,255,255,0.04); color: var(--text); }
+.nav-item.active { background: var(--accent-glow); color: var(--accent); border-color: rgba(52,211,153,0.18); }
+.nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+.sidebar-footer {
+  padding: 14px 20px 0;
+  border-top: 1px solid var(--border);
+  margin-top: 12px;
+}
+.budget-mini { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+.budget-bar-wrap { background: rgba(255,255,255,0.06); border-radius: 4px; height: 5px; overflow: hidden; }
+.budget-bar { height: 100%; border-radius: 4px; background: var(--accent); transition: width 0.5s; }
+.budget-bar.warning { background: var(--amber); }
+.budget-bar.danger { background: var(--red); }
+.budget-pct { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+/* ── MAIN AREA ── */
+.main {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 24px 28px;
+  padding-bottom: calc(24px + var(--nav-h) + var(--safe-bottom));
+}
+
+/* ── MOBILE BOTTOM NAV ── */
+.bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: calc(var(--nav-h) + var(--safe-bottom));
+  background: var(--surface);
+  border-top: 1px solid var(--border2);
+  z-index: 200;
+  padding-bottom: var(--safe-bottom);
+  backdrop-filter: blur(20px);
+}
+.bottom-nav-inner {
+  display: flex;
+  height: var(--nav-h);
+}
+.bn-item {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 4px; cursor: pointer;
+  color: var(--muted2); transition: color 0.2s;
+  position: relative; border: none; background: none;
+  font-family: 'Be Vietnam Pro', sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+.bn-item svg { width: 22px; height: 22px; transition: transform 0.2s; }
+.bn-item span { font-size: 10px; font-weight: 500; }
+.bn-item.active { color: var(--accent); }
+.bn-item.active svg { transform: scale(1.1); }
+
+/* Add button (center) */
+.bn-add {
+  background: var(--accent);
+  border-radius: 50%;
+  width: 50px; height: 50px;
+  margin-top: -8px;
+  color: #0a0e1a !important;
+  box-shadow: 0 4px 16px rgba(52,211,153,0.4);
+  flex-direction: row !important;
+  gap: 0 !important;
+}
+.bn-add svg { width: 26px !important; height: 26px !important; }
+.bn-add span { display: none; }
+.bn-add.active { color: #0a0e1a !important; }
+
+/* ── MOBILE HEADER ── */
+.mobile-header {
+  display: none;
+  position: sticky; top: 0; z-index: 100;
+  height: var(--header-h);
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  align-items: center;
+  padding: 0 16px;
+  gap: 12px;
+}
+.mobile-header-logo { font-family: 'Sora', sans-serif; font-size: 16px; font-weight: 800; }
+.mobile-header-logo span { color: var(--accent); }
+.mobile-header-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.sync-indicator {
+  font-size: 11px; color: var(--muted);
+  display: flex; align-items: center; gap: 4px;
+}
+.sync-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.sync-dot.loading { background: var(--amber); animation: pulse 1s infinite; }
+.sync-dot.error { background: var(--red); }
+
+/* ── PAGES ── */
+.page { display: none; }
+.page.active { display: block; animation: fadeUp 0.2s ease; }
+@keyframes fadeUp { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: translateY(0); } }
+
+/* ── PAGE HEADER ── */
+.page-header { margin-bottom: 20px; }
+.page-header h2 {
+  font-family: 'Sora', sans-serif;
+  font-size: 20px; font-weight: 800; color: var(--text);
+}
+.page-header p { font-size: 12.5px; color: var(--muted); margin-top: 3px; }
+
+/* ── STATS GRID ── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px; margin-bottom: 16px;
+}
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  position: relative; overflow: hidden;
+  transition: transform 0.15s;
+}
+.stat-card:active { transform: scale(0.98); }
+.stat-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+}
+.stat-card.green::before { background: var(--accent); }
+.stat-card.red::before { background: var(--red); }
+.stat-card.blue::before { background: var(--blue); }
+.stat-card.purple::before { background: var(--purple); }
+.stat-label { font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+.stat-value { font-size: 17px; font-weight: 700; color: var(--text); line-height: 1.2; word-break: break-all; }
+.stat-sub { font-size: 10px; color: var(--muted); margin-top: 4px; }
+.stat-icon { position: absolute; right: 12px; top: 12px; opacity: 0.12; }
+.stat-icon svg { width: 26px; height: 26px; }
+
+/* Balance card – full width */
+.balance-card {
+  background: linear-gradient(135deg, var(--surface2) 0%, var(--surface3) 100%);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  margin-bottom: 12px;
+  position: relative; overflow: hidden;
+}
+.balance-card::after {
+  content: '';
+  position: absolute;
+  top: -30px; right: -30px;
+  width: 100px; height: 100px;
+  background: var(--accent-glow);
+  border-radius: 50%;
+  filter: blur(20px);
+}
+.balance-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
+.balance-value {
+  font-family: 'Sora', sans-serif;
+  font-size: 28px; font-weight: 800; color: var(--accent);
+  line-height: 1.1; margin-bottom: 4px;
+}
+.balance-value.negative { color: var(--red); }
+.balance-month { font-size: 12px; color: var(--muted); }
+
+/* ── CARDS ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 14px;
+}
+.card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px;
+}
+.card-title { font-size: 13.5px; font-weight: 600; color: var(--text); }
+.card-subtitle { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+/* ── GRID ── */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+/* ── FORMS ── */
+.form-group { margin-bottom: 13px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+label { font-size: 11.5px; font-weight: 500; color: var(--muted); display: block; margin-bottom: 5px; }
+
+input, select, textarea {
+  width: 100%;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-sm);
+  padding: 10px 13px;
+  color: var(--text);
+  font-family: 'Be Vietnam Pro', sans-serif;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s, background 0.15s;
+  -webkit-appearance: none;
+  appearance: none;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--accent);
+  background: rgba(52,211,153,0.04);
+}
+select option { background: #1a2235; }
+textarea { resize: vertical; min-height: 68px; }
+input[type="number"] { -moz-appearance: textfield; }
+input[type="number"]::-webkit-inner-spin-button { display: none; }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 10px 18px;
+  border-radius: var(--radius-sm);
+  border: none; cursor: pointer;
+  font-family: 'Be Vietnam Pro', sans-serif;
+  font-size: 13.5px; font-weight: 600;
+  transition: all 0.15s; touch-action: manipulation;
+}
+.btn-primary { background: var(--accent); color: #0a0e1a; }
+.btn-primary:hover, .btn-primary:active { background: var(--accent2); }
+.btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border2); }
+.btn-ghost:hover, .btn-ghost:active { background: rgba(255,255,255,0.05); color: var(--text); }
+.btn-danger { background: var(--red-glow); color: var(--red); border: 1px solid rgba(248,113,113,0.2); }
+.btn svg { width: 14px; height: 14px; }
+.btn-full { width: 100%; justify-content: center; }
+
+/* ── TRANSACTION ITEMS ── */
+.tx-item {
+  display: flex; align-items: center; gap: 11px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--border);
+}
+.tx-item:last-child { border-bottom: none; }
+.tx-icon {
+  width: 40px; height: 40px;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+}
+.tx-info { flex: 1; min-width: 0; }
+.tx-name { font-size: 13.5px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tx-meta { font-size: 11px; color: var(--muted); margin-top: 2px; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.tx-amount { font-size: 14px; font-weight: 700; text-align: right; flex-shrink: 0; }
+.tx-amount.expense { color: var(--red); }
+.tx-amount.income { color: var(--accent); }
+
+.icon-btn {
+  background: none; border: none; cursor: pointer;
+  padding: 6px; border-radius: 8px;
+  color: var(--muted);
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s; touch-action: manipulation;
+}
+.icon-btn:hover, .icon-btn:active { background: rgba(255,255,255,0.07); color: var(--text); }
+.icon-btn.del:hover, .icon-btn.del:active { background: var(--red-glow); color: var(--red); }
+.icon-btn svg { width: 15px; height: 15px; }
+
+/* ── BADGE ── */
+.badge {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 2px 7px; border-radius: 20px;
+  font-size: 10.5px; font-weight: 500;
+}
+.cat-food { background: rgba(251,191,36,0.12); color: #fbbf24; }
+.cat-transport { background: rgba(96,165,250,0.12); color: #60a5fa; }
+.cat-shopping { background: rgba(167,139,250,0.12); color: #a78bfa; }
+.cat-health { background: rgba(52,211,153,0.12); color: #34d399; }
+.cat-entertainment { background: rgba(248,113,113,0.12); color: #f87171; }
+.cat-education { background: rgba(251,146,60,0.12); color: #fb923c; }
+.cat-housing { background: rgba(56,189,248,0.12); color: #38bdf8; }
+.cat-income { background: rgba(52,211,153,0.12); color: #34d399; }
+.cat-other { background: rgba(148,163,184,0.12); color: #94a3b8; }
+
+/* ── CHARTS ── */
+canvas { max-width: 100%; }
+
+.cat-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.cat-name { flex: 1; font-size: 12.5px; color: var(--text); min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cat-bar-wrap { flex: 2; background: rgba(255,255,255,0.05); border-radius: 4px; height: 5px; }
+.cat-bar { height: 100%; border-radius: 4px; transition: width 0.5s; }
+.cat-amount { font-size: 12px; font-weight: 500; color: var(--text); min-width: 72px; text-align: right; }
+.cat-pct { font-size: 10.5px; color: var(--muted); min-width: 32px; text-align: right; }
+
+/* ── FILTERS ── */
+.filter-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.filter-row select { width: auto; padding: 6px 10px; font-size: 12px; }
+
+/* ── SEARCH ── */
+.search-wrap { position: relative; margin-bottom: 12px; }
+.search-wrap svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--muted); width: 15px; height: 15px; pointer-events: none; }
+.search-wrap input { padding-left: 35px; }
+
+/* ── EMPTY STATE ── */
+.empty-state { text-align: center; padding: 36px 20px; color: var(--muted); }
+.empty-state svg { width: 40px; height: 40px; margin-bottom: 12px; opacity: 0.25; }
+.empty-state p { font-size: 13px; }
+
+/* ── BUDGET ── */
+.budget-item { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+.budget-item:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+.budget-info { flex: 1; min-width: 0; }
+.budget-name { font-size: 13px; font-weight: 500; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; }
+.budget-amounts { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.bbar-wrap { background: rgba(255,255,255,0.06); border-radius: 4px; height: 7px; overflow: hidden; }
+.bbar { height: 100%; border-radius: 4px; transition: width 0.5s; }
+
+/* ── MODAL ── */
+.modal-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(6px);
+  z-index: 500;
+  align-items: flex-end;
+  justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 24px 24px 0 0;
+  padding: 20px 20px calc(20px + var(--safe-bottom));
+  width: 100%;
+  max-width: 520px;
+  animation: slideUp 0.25s cubic-bezier(0.34,1.56,0.64,1);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.modal-handle {
+  width: 40px; height: 4px;
+  background: var(--border2);
+  border-radius: 2px;
+  margin: 0 auto 18px;
+}
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.modal-title { font-size: 16px; font-weight: 700; }
+
+/* ── TYPE TABS ── */
+.type-tabs { display: flex; gap: 0; background: rgba(255,255,255,0.05); border-radius: var(--radius-sm); padding: 3px; margin-bottom: 14px; }
+.type-tab {
+  flex: 1; padding: 8px; text-align: center; border-radius: 8px;
+  cursor: pointer; font-size: 13px; font-weight: 600;
+  color: var(--muted); transition: all 0.15s; border: none; background: none;
+  font-family: 'Be Vietnam Pro', sans-serif;
+}
+.type-tab.active.expense { background: rgba(248,113,113,0.15); color: var(--red); }
+.type-tab.active.income { background: var(--accent-glow); color: var(--accent); }
+
+/* ── TOAST ── */
+.toast {
+  position: fixed; bottom: calc(var(--nav-h) + var(--safe-bottom) + 12px); left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 50px;
+  padding: 10px 20px;
+  font-size: 13px;
+  display: flex; align-items: center; gap: 8px;
+  z-index: 999;
+  white-space: nowrap;
+  animation: toastIn 0.25s ease;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+@keyframes toastIn { from { opacity:0; transform: translateX(-50%) translateY(10px); } to { opacity:1; transform: translateX(-50%) translateY(0); } }
+.toast.success { border-color: rgba(52,211,153,0.3); }
+.toast.error { border-color: rgba(248,113,113,0.3); }
+
+/* ── AMOUNT INPUT QUICK BUTTONS ── */
+.quick-amounts { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.qa-btn {
+  padding: 4px 10px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border2);
+  border-radius: 20px;
+  color: var(--muted);
+  font-size: 11px; font-weight: 500;
+  cursor: pointer; transition: all 0.15s;
+  font-family: 'Be Vietnam Pro', sans-serif;
+}
+.qa-btn:hover, .qa-btn:active { background: var(--accent-glow); color: var(--accent); border-color: rgba(52,211,153,0.3); }
+
+/* ── SECTION DIVIDER ── */
+.section-date {
+  font-size: 11px; font-weight: 700; color: var(--muted2);
+  text-transform: uppercase; letter-spacing: 0.8px;
+  padding: 8px 0 4px; margin-top: 4px;
+}
+
+/* ── SWIPE DELETE HINT (visual only) ── */
+.tx-swipe-wrap { position: relative; overflow: hidden; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+  .bottom-nav { display: flex; flex-direction: column; }
+  .mobile-header { display: flex; }
+
+  .main {
+    padding: 0 0 calc(var(--nav-h) + var(--safe-bottom) + 16px);
+  }
+  .main-inner { padding: 14px 14px 0; }
+
+  .grid-2 { grid-template-columns: 1fr; }
+  .form-row { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat-value { font-size: 15px; }
+  .balance-value { font-size: 26px; }
+
+  .modal {
+    border-radius: 24px 24px 0 0;
+    max-height: 92dvh;
+  }
+
+  .toast { bottom: calc(var(--nav-h) + var(--safe-bottom) + 10px); }
+}
+
+@media (min-width: 769px) {
+  .main-inner { padding: 0; }
+  .toast { bottom: 24px; left: auto; right: 24px; transform: none; }
+  @keyframes toastIn { from { opacity:0; transform: translateY(10px); } to { opacity:1; transform: translateY(0); } }
+  .modal-overlay { align-items: center; }
+  .modal { border-radius: 20px; max-height: 85vh; max-width: 480px; margin: 20px; padding: 24px; }
+  .modal-handle { display: none; }
+}
+
+/* Stat card full width on very small */
+@media (max-width: 340px) {
+  .stats-grid { grid-template-columns: 1fr; }
+}
+
+/* ── SYNC STATUS BAR ── */
+.sync-bar {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; color: var(--muted);
+  padding: 6px 0 10px;
+}
+.sync-bar .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+.sync-bar .dot.syncing { background: var(--amber); animation: pulse 1s infinite; }
+
+/* ── NUMBER FORMAT HELPER ── */
+.amount-display { font-variant-numeric: tabular-nums; }
+
+/* ── LOGIN SCREEN ── */
+#login-screen {
+  position: fixed; inset: 0; z-index: 10000;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+#login-screen.hide { display: none; }
+.login-box {
+  width: 100%; max-width: 380px;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 24px;
+  padding: 36px 32px 32px;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+  position: relative; overflow: hidden;
+}
+.login-box::before {
+  content: '';
+  position: absolute; top: -60px; right: -60px;
+  width: 180px; height: 180px;
+  background: var(--accent-glow);
+  border-radius: 50%; filter: blur(40px);
+  pointer-events: none;
+}
+.login-logo {
+  text-align: center; margin-bottom: 28px;
+}
+.login-logo-icon {
+  width: 60px; height: 60px;
+  background: var(--accent-glow);
+  border: 1.5px solid rgba(52,211,153,0.3);
+  border-radius: 18px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px; margin: 0 auto 14px;
+}
+.login-logo h1 {
+  font-family: 'Sora', sans-serif;
+  font-size: 20px; font-weight: 800; color: var(--text);
+}
+.login-logo p { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.login-error {
+  background: var(--red-glow); border: 1px solid rgba(248,113,113,0.25);
+  border-radius: 10px; padding: 10px 14px;
+  font-size: 13px; color: var(--red);
+  margin-bottom: 14px; display: none;
+  text-align: center;
+}
+.login-error.show { display: block; }
+.login-footer {
+  text-align: center; margin-top: 20px;
+  font-size: 11px; color: var(--muted2);
+}
+
+/* ── CATEGORY MANAGE MODAL ── */
+#cat-modal .modal { max-width: 500px; }
+.cat-manage-list { margin-bottom: 16px; }
+.cat-manage-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 0; border-bottom: 1px solid var(--border);
+}
+.cat-manage-item:last-child { border-bottom: none; }
+.cat-icon-preview {
+  width: 38px; height: 38px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+}
+.cat-manage-name { flex: 1; font-size: 13px; font-weight: 500; color: var(--text); }
+.cat-manage-actions { display: flex; gap: 4px; }
+.cat-add-form {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 12px; padding: 14px;
+  margin-top: 4px;
+}
+.cat-add-form h4 { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 12px; }
+.cat-form-row { display: grid; grid-template-columns: 1fr 1fr 80px; gap: 8px; align-items: end; }
+.color-input-wrap { display: flex; align-items: center; gap: 6px; }
+.color-input-wrap input[type="color"] {
+  width: 36px; height: 36px; padding: 2px;
+  border-radius: 8px; cursor: pointer;
+  background: rgba(255,255,255,0.04);
+}
+
+/* ── DONUT BREAKDOWN LIST ── */
+.donut-legend-list { margin-top: 12px; }
+.donut-legend-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 0; border-bottom: 1px solid var(--border);
+}
+.donut-legend-item:last-child { border-bottom: none; }
+.donut-legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+.donut-legend-name { flex: 1; font-size: 12.5px; color: var(--text2); }
+.donut-legend-pct {
+  font-size: 12px; font-weight: 700; min-width: 38px; text-align: right;
+}
+.donut-legend-amt { font-size: 12px; font-weight: 600; color: var(--text); min-width: 80px; text-align: right; }
+
+/* ── DATABASE MANAGEMENT PAGE ── */
+.db-section { margin-bottom: 16px; }
+.db-period-bar {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px 16px;
+  margin-bottom: 14px; flex-wrap: wrap;
+}
+.db-period-label { font-size: 12px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+.db-period-selects { display: flex; gap: 8px; flex: 1; min-width: 0; }
+.db-period-selects select { font-size: 13px; padding: 8px 10px; }
+.db-stats-row {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px;
+}
+.db-stat {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 12px 14px; text-align: center;
+}
+.db-stat-val { font-size: 20px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
+.db-stat-lbl { font-size: 10px; color: var(--muted); margin-top: 3px; }
+.db-action-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;
+}
+.db-action-btn {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; padding: 18px 12px;
+  border-radius: var(--radius); border: 1px solid var(--border2);
+  cursor: pointer; transition: all 0.15s; background: var(--surface);
+  font-family: 'Be Vietnam Pro', sans-serif; color: var(--text2);
+  font-size: 13px; font-weight: 600; text-align: center;
+}
+.db-action-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+.db-action-btn.export { border-color: rgba(96,165,250,0.3); }
+.db-action-btn.export:hover { background: rgba(96,165,250,0.08); color: var(--blue); }
+.db-action-btn.import { border-color: rgba(167,139,250,0.3); }
+.db-action-btn.import:hover { background: rgba(167,139,250,0.08); color: var(--purple); }
+.db-action-btn.delete-btn { border-color: rgba(248,113,113,0.3); }
+.db-action-btn.delete-btn:hover { background: var(--red-glow); color: var(--red); }
+.db-action-btn.export-all { border-color: rgba(52,211,153,0.3); }
+.db-action-btn.export-all:hover { background: var(--accent-glow); color: var(--accent); }
+.db-action-icon { font-size: 24px; }
+.db-action-sub { font-size: 10.5px; color: var(--muted); font-weight: 400; margin-top: 2px; }
+.db-danger-zone {
+  background: rgba(248,113,113,0.04); border: 1px solid rgba(248,113,113,0.15);
+  border-radius: var(--radius); padding: 16px; margin-top: 14px;
+}
+.db-danger-title { font-size: 12px; font-weight: 700; color: var(--red); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+.db-tx-preview {
+  max-height: 220px; overflow-y: auto;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: rgba(255,255,255,0.02);
+}
+.db-tx-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px; border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.db-tx-row:last-child { border-bottom: none; }
+.db-tx-date { color: var(--muted); min-width: 72px; }
+.db-tx-desc { flex: 1; color: var(--text2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.db-tx-amt { font-weight: 700; min-width: 80px; text-align: right; }
+.db-tx-amt.expense { color: var(--red); }
+.db-tx-amt.income { color: var(--accent); }
+
+/* ── USER INFO SIDEBAR ── */
+.sidebar-user {
+  padding: 12px 20px 0;
+  display: flex; align-items: center; gap: 8px;
+  border-top: 1px solid var(--border);
+  margin-top: 12px;
+}
+.user-avatar {
+  width: 32px; height: 32px;
+  background: var(--accent-glow);
+  border: 1px solid rgba(52,211,153,0.25);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; flex-shrink: 0;
+}
+.user-info { flex: 1; min-width: 0; }
+.user-name { font-size: 12px; font-weight: 600; color: var(--text); }
+.user-role { font-size: 10px; color: var(--muted); }
+.logout-btn {
+  background: none; border: none; cursor: pointer;
+  color: var(--muted); padding: 4px; border-radius: 6px;
+  transition: all 0.15s; display: flex;
+}
+.logout-btn:hover { color: var(--red); background: var(--red-glow); }
+.logout-btn svg { width: 15px; height: 15px; }
+/* ── REPORT RANGE FILTER ── */
+.range-pills {
+  display: flex; gap: 6px; flex-wrap: wrap;
+}
+.range-pill {
+  padding: 5px 13px; border-radius: 20px; font-size: 12px; font-weight: 600;
+  border: 1px solid var(--border2); background: transparent; color: var(--muted);
+  cursor: pointer; font-family: 'Be Vietnam Pro', sans-serif; transition: all 0.15s;
+  touch-action: manipulation;
+}
+.range-pill:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+.range-pill.active { background: var(--accent-glow); color: var(--accent); border-color: rgba(52,211,153,0.35); }
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="login-logo-icon">💰</div>
+      <h1>Chi Tiêu Thông Minh</h1>
+      <p>Đăng nhập để quản lý tài chính của bạn</p>
+    </div>
+    <div class="login-error" id="login-error">Đăng nhập Google thất bại, vui lòng thử lại!</div>
+
+    <!-- Google Identity Services: config -->
+    <!-- 🔑 INSERT YOUR CLIENT_ID HERE (data-client_id) -->
+    <div id="g_id_onload"
+         data-client_id="YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
+         data-callback="handleGoogleSignIn"
+         data-auto_prompt="false">
+    </div>
+
+    <!-- Google Identity Services: rendered "Sign in with Google" button -->
+    <div class="g_id_signin"
+         data-type="standard"
+         data-shape="pill"
+         data-theme="filled_black"
+         data-text="signin_with"
+         data-size="large"
+         data-logo_alignment="left"
+         style="display:flex; justify-content:center; margin-top:8px;">
+    </div>
+
+    <div class="login-footer">© Chi Tiêu Thông Minh · Quản lý tài chính cá nhân</div>
+  </div>
+</div>
+
+<!-- Loading screen -->
+<div id="loading-screen">
+  <div class="loader-icon">💰</div>
+  <div class="loader-spinner"></div>
+  <div class="loader-text">Đang kết nối Firebase...</div>
+</div>
+
+<!-- Mobile Header -->
+<header class="mobile-header">
+  <div class="mobile-header-logo">Chi<span>Tiêu</span></div>
+  <div class="mobile-header-right">
+    <div class="sync-indicator">
+      <div class="sync-dot" id="sync-dot"></div>
+      <span id="sync-label">Đã đồng bộ</span>
+    </div>
+    <button class="logout-btn" onclick="doLogout()" title="Đăng xuất" style="margin-left:4px;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+    </button>
+  </div>
+</header>
+
+<div class="app">
+  <!-- Desktop Sidebar -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-icon">💰</div>
+      <h1>Chi Tiêu<br>Thông Minh</h1>
+      <p>Quản lý tài chính cá nhân</p>
+    </div>
+    <nav class="nav-section">
+      <div class="nav-label">Menu chính</div>
+      <div class="nav-item active" data-page="dashboard" onclick="showPage('dashboard')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Tổng quan
+      </div>
+      <div class="nav-item" data-page="transactions" onclick="showPage('transactions')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="12" y2="16"/></svg>
+        Giao dịch
+      </div>
+      <div class="nav-item" data-page="add" onclick="showPage('add')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        Thêm mới
+      </div>
+      <div class="nav-item" data-page="budget" onclick="showPage('budget')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        Ngân sách
+      </div>
+      <div class="nav-item" data-page="reports" onclick="showPage('reports')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Báo cáo
+      </div>
+      <div class="nav-label" style="margin-top:18px;">Hệ thống</div>
+      <div class="nav-item" data-page="database" onclick="showPage('database')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+        Quản lý DB
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="budget-mini">Ngân sách tháng này</div>
+      <div class="budget-bar-wrap">
+        <div class="budget-bar" id="sidebar-budget-bar" style="width:0%"></div>
+      </div>
+      <div class="budget-pct" id="sidebar-budget-pct">0% đã dùng</div>
+    </div>
+    <div class="sidebar-user">
+      <div class="user-avatar">👤</div>
+      <div class="user-info">
+        <div class="user-name" id="sidebar-username">—</div>
+        <div class="user-role">Đã đăng nhập</div>
+      </div>
+      <button class="logout-btn" onclick="doLogout()" title="Đăng xuất">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <div class="main-inner">
+
+      <!-- ── DASHBOARD ── -->
+      <div class="page active" id="page-dashboard">
+        <div class="page-header" style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+          <div>
+            <h2>Tổng quan</h2>
+            <p id="dashboard-date"></p>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px; flex-shrink:0; margin-top:2px;">
+            <select id="dash-filter-month" onchange="renderDashboard()" style="padding:7px 10px; font-size:12.5px; border-radius:var(--radius-sm); min-width:130px;">
+              <option value="">-- Chọn tháng --</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="balance-card">
+          <div class="balance-label" id="balance-card-label">Số dư tích lũy</div>
+          <div class="balance-value amount-display" id="stat-balance">0 ₫</div>
+          <div class="balance-month" id="balance-month-label"></div>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card green">
+            <div class="stat-label">Thu nhập</div>
+            <div class="stat-value amount-display" id="stat-income">0 ₫</div>
+            <div class="stat-sub" id="stat-income-sub">Tháng này</div>
+            <div class="stat-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6h-6z"/></svg></div>
+          </div>
+          <div class="stat-card red">
+            <div class="stat-label">Chi tiêu</div>
+            <div class="stat-value amount-display" id="stat-expense">0 ₫</div>
+            <div class="stat-sub" id="stat-expense-sub">Tháng này</div>
+            <div class="stat-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 18l2.29-2.29-4.88-4.88-4 4L2 7.41 3.41 6l6 6 4-4 6.3 6.29L22 12v6h-6z"/></svg></div>
+          </div>
+          <div class="stat-card purple" style="grid-column: span 2;">
+            <div class="stat-label" id="stat-count-label">Giao dịch tháng này</div>
+            <div class="stat-value" id="stat-count">0 giao dịch</div>
+          </div>
+        </div>
+
+        <div id="carryover-card" style="display:none; background:var(--surface); border:1px solid var(--border2); border-radius:var(--radius); padding:12px 16px; margin-bottom:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; font-size:12.5px;">
+            <span style="color:var(--muted);">💼 Số dư mang từ tháng trước</span>
+            <span id="carryover-value" style="font-weight:700; color:var(--accent);">+0 ₫</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; font-size:12.5px; margin-top:6px;">
+            <span style="color:var(--muted);">📊 Thu - Chi tháng này</span>
+            <span id="monthly-net-value" style="font-weight:700;">0 ₫</span>
+          </div>
+          <div style="border-top:1px solid var(--border); margin-top:8px; padding-top:8px; display:flex; justify-content:space-between; align-items:center; font-size:13px;">
+            <span style="color:var(--text2); font-weight:600;">= Số dư tích lũy</span>
+            <span id="cumulative-detail" style="font-weight:700; color:var(--accent);">0 ₫</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Chi tiêu theo danh mục</div>
+              <div class="card-subtitle" id="donut-subtitle">Tháng này</div>
+            </div>
+          </div>
+          <div style="position:relative; height:190px;">
+            <canvas id="donut-chart"></canvas>
+          </div>
+          <div class="donut-legend-list" id="donut-legend-list"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Giao dịch gần đây</div>
+            <button class="btn btn-ghost" style="font-size:12px; padding:5px 10px;" onclick="showPage('transactions')">Xem tất cả</button>
+          </div>
+          <div id="recent-list">
+            <div class="empty-state">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>
+              <p>Chưa có giao dịch nào</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><div class="card-title">Xu hướng 6 tháng</div></div>
+          <div style="position:relative; height:200px;">
+            <canvas id="trend-chart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── TRANSACTIONS ── -->
+      <div class="page" id="page-transactions">
+        <div class="page-header" style="display:flex; align-items:flex-start; justify-content:space-between;">
+          <div>
+            <h2>Giao dịch</h2>
+            <p>Lịch sử thu chi của bạn</p>
+          </div>
+          <button class="btn btn-primary" onclick="showPage('add')" style="flex-shrink:0; margin-top:2px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Thêm
+          </button>
+        </div>
+
+        <div class="card">
+          <div class="search-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <input type="text" id="search-input" placeholder="Tìm kiếm giao dịch..." oninput="renderTransactions()">
+          </div>
+          <div class="filter-row">
+            <select id="filter-type" onchange="renderTransactions()" style="flex:1; min-width:100px;">
+              <option value="">Tất cả loại</option>
+              <option value="expense">Chi tiêu</option>
+              <option value="income">Thu nhập</option>
+            </select>
+            <select id="filter-cat" onchange="renderTransactions()" style="flex:1; min-width:100px;">
+              <option value="">Tất cả danh mục</option>
+            </select>
+            <select id="filter-month" onchange="renderTransactions()" style="flex:1; min-width:110px;">
+              <option value="">Tất cả tháng</option>
+            </select>
+          </div>
+          <div id="tx-list"></div>
+        </div>
+      </div>
+
+      <!-- ── ADD / EDIT ── -->
+      <div class="page" id="page-add">
+        <div class="page-header">
+          <h2 id="add-page-title">Thêm giao dịch</h2>
+          <p>Ghi lại thu nhập hoặc chi tiêu</p>
+        </div>
+
+        <div class="card">
+          <div class="type-tabs">
+            <button class="type-tab active expense" id="tab-expense" onclick="setType('expense')">💸 Chi tiêu</button>
+            <button class="type-tab income" id="tab-income" onclick="setType('income')">💵 Thu nhập</button>
+          </div>
+
+          <div class="form-group">
+            <label>Mô tả *</label>
+            <input type="text" id="f-desc" placeholder="VD: Ăn trưa, Cà phê sáng...">
+          </div>
+          <div class="form-group">
+            <label>Số tiền (₫) *</label>
+            <input type="number" id="f-amount" placeholder="0" min="0" inputmode="numeric">
+            <div class="quick-amounts">
+              <button class="qa-btn" onclick="addAmount(10000)">+10K</button>
+              <button class="qa-btn" onclick="addAmount(20000)">+20K</button>
+              <button class="qa-btn" onclick="addAmount(50000)">+50K</button>
+              <button class="qa-btn" onclick="addAmount(100000)">+100K</button>
+              <button class="qa-btn" onclick="addAmount(200000)">+200K</button>
+              <button class="qa-btn" onclick="addAmount(500000)">+500K</button>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Ngày *</label>
+              <input type="date" id="f-date">
+            </div>
+            <div class="form-group">
+              <label style="display:flex; align-items:center; justify-content:space-between;">
+                Danh mục
+                <button type="button" onclick="openCatModal()" style="font-size:10px; color:var(--accent); background:none; border:none; cursor:pointer; font-family:inherit; padding:0; font-weight:600;">+ Quản lý</button>
+              </label>
+              <select id="f-cat"></select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Ghi chú (tùy chọn)</label>
+            <input type="text" id="f-note" placeholder="Ghi chú thêm...">
+          </div>
+
+          <div style="display:flex; gap:8px; margin-top:4px;">
+            <button class="btn btn-primary btn-full" id="save-btn" onclick="saveTransaction()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              <span id="save-btn-text">Lưu giao dịch</span>
+            </button>
+            <button class="btn btn-ghost" onclick="cancelEdit()">Hủy</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── BUDGET ── -->
+      <div class="page" id="page-budget">
+        <div class="page-header">
+          <h2>Ngân sách</h2>
+          <p>Đặt giới hạn chi tiêu theo danh mục</p>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header"><div class="card-title">Ngân sách tổng tháng</div></div>
+            <div class="form-group">
+              <label>Số tiền (₫)</label>
+              <input type="number" id="total-budget-input" placeholder="VD: 10000000" min="0" inputmode="numeric">
+            </div>
+            <button class="btn btn-primary btn-full" onclick="saveTotalBudget()">Lưu</button>
+            <div id="total-budget-status" style="margin-top:12px;"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><div class="card-title">Ngân sách danh mục</div></div>
+            <div class="form-group">
+              <label>Danh mục</label>
+              <select id="budget-cat"></select>
+            </div>
+            <div class="form-group">
+              <label>Giới hạn (₫/tháng)</label>
+              <input type="number" id="budget-limit" placeholder="0" min="0" inputmode="numeric">
+            </div>
+            <button class="btn btn-primary btn-full" onclick="saveCatBudget()">Thêm</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><div class="card-title">Theo dõi tháng này</div></div>
+          <div id="budget-list"></div>
+        </div>
+      </div>
+
+      <!-- ── REPORTS ── -->
+      <div class="page" id="page-reports">
+        <div class="page-header">
+          <h2>Báo cáo</h2>
+          <p>Phân tích chi tiêu của bạn</p>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title" id="report-cat-title">Chi tiêu theo danh mục — tháng này</div>
+          </div>
+          <div id="cat-breakdown"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header" style="flex-wrap:wrap; gap:10px;">
+            <div class="card-title">Biểu đồ thu chi theo tháng</div>
+            <div class="range-pills" id="report-range-pills">
+              <button class="range-pill" data-range="3" onclick="setReportRange(3)">3 tháng</button>
+              <button class="range-pill active" data-range="6" onclick="setReportRange(6)">6 tháng</button>
+              <button class="range-pill" data-range="12" onclick="setReportRange(12)">12 tháng</button>
+              <button class="range-pill" data-range="0" onclick="setReportRange(0)">Tất cả</button>
+            </div>
+          </div>
+          <div style="position:relative; height:240px;">
+            <canvas id="monthly-chart"></canvas>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><div class="card-title">Thống kê tổng hợp</div></div>
+          <div id="report-stats" class="stats-grid" style="margin:0; grid-template-columns:1fr 1fr;"></div>
+        </div>
+      </div>
+
+      <!-- ── DATABASE ── -->
+      <div class="page" id="page-database">
+        <div class="page-header">
+          <h2>Quản lý Database</h2>
+          <p id="db-page-user-label">Dữ liệu của tài khoản</p>
+        </div>
+
+        <!-- Period Filter -->
+        <div class="db-period-bar">
+          <span class="db-period-label">🗓️ Lọc theo:</span>
+          <div class="db-period-selects">
+            <select id="db-filter-month" onchange="renderDbPage()" style="flex:1;">
+              <option value="">Tất cả</option>
+            </select>
+          </div>
+          <button class="btn btn-ghost" onclick="dbSetThisMonth()" style="font-size:12px; padding:7px 12px; flex-shrink:0;">Tháng này</button>
+        </div>
+
+        <!-- Stats -->
+        <div class="db-stats-row">
+          <div class="db-stat">
+            <div class="db-stat-val" id="db-stat-count">0</div>
+            <div class="db-stat-lbl">Giao dịch</div>
+          </div>
+          <div class="db-stat">
+            <div class="db-stat-val" id="db-stat-exp" style="color:var(--red);font-size:14px;">0 ₫</div>
+            <div class="db-stat-lbl">Tổng chi</div>
+          </div>
+          <div class="db-stat">
+            <div class="db-stat-val" id="db-stat-inc" style="color:var(--accent);font-size:14px;">0 ₫</div>
+            <div class="db-stat-lbl">Tổng thu</div>
+          </div>
+        </div>
+
+        <!-- Transaction preview -->
+        <div class="card db-section">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Xem trước dữ liệu</div>
+              <div class="card-subtitle" id="db-preview-label">Danh sách giao dịch trong phạm vi đã chọn</div>
+            </div>
+          </div>
+          <div class="db-tx-preview" id="db-tx-preview"></div>
+        </div>
+
+        <!-- Actions -->
+        <div class="card db-section">
+          <div class="card-header"><div class="card-title">Thao tác dữ liệu</div></div>
+          <div class="db-action-grid">
+            <button class="db-action-btn export" onclick="dbExportJson()">
+              <div class="db-action-icon">📥</div>
+              <div>Export JSON</div>
+              <div class="db-action-sub">Tải về dữ liệu đã lọc</div>
+            </button>
+            <button class="db-action-btn import" onclick="dbImportJson()">
+              <div class="db-action-icon">📤</div>
+              <div>Import JSON</div>
+              <div class="db-action-sub">Nhập từ file JSON</div>
+            </button>
+            <button class="db-action-btn export-all" onclick="dbExportAll()">
+              <div class="db-action-icon">💾</div>
+              <div>Backup toàn bộ</div>
+              <div class="db-action-sub">Export tất cả dữ liệu</div>
+            </button>
+            <button class="db-action-btn delete-btn" onclick="dbDeleteFiltered()">
+              <div class="db-action-icon">🗑️</div>
+              <div>Xóa đã lọc</div>
+              <div class="db-action-sub">Xóa giao dịch trong phạm vi</div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Danger zone -->
+        <div class="db-danger-zone">
+          <div class="db-danger-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            Vùng nguy hiểm
+          </div>
+          <button class="btn btn-danger btn-full" onclick="dbDeleteAll()" style="justify-content:center;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+            Xóa TOÀN BỘ dữ liệu tài khoản này
+          </button>
+        </div>
+      </div>
+
+    </div><!-- .main-inner -->
+  </main>
+</div><!-- .app -->
+
+<!-- Bottom Navigation (Mobile) -->
+<nav class="bottom-nav">
+  <div class="bottom-nav-inner">
+    <button class="bn-item active" data-page="dashboard" onclick="showPage('dashboard')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      <span>Tổng quan</span>
+    </button>
+    <button class="bn-item" data-page="transactions" onclick="showPage('transactions')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>
+      <span>Giao dịch</span>
+    </button>
+    <button class="bn-item bn-add" data-page="add" onclick="showPage('add')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <span>Thêm</span>
+    </button>
+    <button class="bn-item" data-page="budget" onclick="showPage('budget')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      <span>Ngân sách</span>
+    </button>
+    <button class="bn-item" data-page="reports" onclick="showPage('reports')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      <span>Báo cáo</span>
+    </button>
+  </div>
+</nav>
+
+<!-- Hidden file input for JSON import -->
+<input type="file" id="db-import-file" accept=".json" style="display:none;" onchange="dbHandleImport(this)">
+
+<!-- Edit Modal (bottom sheet on mobile) -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div class="modal-title">Chỉnh sửa giao dịch</div>
+      <button class="icon-btn" onclick="closeModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="type-tabs">
+      <button class="type-tab active expense" id="m-tab-expense" onclick="setModalType('expense')">💸 Chi tiêu</button>
+      <button class="type-tab income" id="m-tab-income" onclick="setModalType('income')">💵 Thu nhập</button>
+    </div>
+    <div class="form-group"><label>Mô tả</label><input type="text" id="m-desc"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Số tiền (₫)</label><input type="number" id="m-amount" min="0" inputmode="numeric"></div>
+      <div class="form-group"><label>Ngày</label><input type="date" id="m-date"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Danh mục</label><select id="m-cat"></select></div>
+      <div class="form-group"><label>Ghi chú</label><input type="text" id="m-note"></div>
+    </div>
+    <div style="display:flex; gap:8px; margin-top:4px;">
+      <button class="btn btn-primary btn-full" onclick="updateTransaction()">Cập nhật</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Hủy</button>
+    </div>
+  </div>
+</div>
+
+<!-- Category Management Modal -->
+<div class="modal-overlay" id="cat-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div class="modal-title">Quản lý danh mục</div>
+      <button class="icon-btn" onclick="closeCatModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div style="margin-bottom:12px;">
+      <div class="type-tabs" style="max-width:200px;">
+        <button class="type-tab active expense" id="cm-tab-expense" onclick="setCatModalType('expense')">Chi tiêu</button>
+        <button class="type-tab income" id="cm-tab-income" onclick="setCatModalType('income')">Thu nhập</button>
+      </div>
+    </div>
+    <div class="cat-manage-list" id="cat-manage-list"></div>
+
+    <div class="cat-add-form" id="cat-add-form">
+      <h4 id="cat-form-title">➕ Thêm danh mục mới</h4>
+      <input type="hidden" id="cm-edit-id">
+      <div style="display:grid; grid-template-columns:64px 1fr; gap:8px; margin-bottom:10px;">
+        <div class="form-group" style="margin:0;">
+          <label>Icon</label>
+          <input type="text" id="cm-icon" placeholder="🍜" maxlength="4" style="text-align:center; font-size:20px;">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label>Tên danh mục</label>
+          <input type="text" id="cm-name" placeholder="VD: Ăn uống">
+        </div>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 50px; gap:8px; align-items:end; margin-bottom:12px;">
+        <div class="form-group" style="margin:0;">
+          <label>Màu sắc</label>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <input type="color" id="cm-color" value="#34d399" style="width:44px; height:38px; padding:3px; border-radius:8px; background:rgba(255,255,255,0.04); border:1px solid var(--border2); cursor:pointer;">
+            <div style="flex:1; display:flex; flex-wrap:wrap; gap:5px;">
+              <button type="button" onclick="document.getElementById('cm-color').value='#fbbf24'" style="width:22px;height:22px;border-radius:6px;background:#fbbf24;border:none;cursor:pointer;"></button>
+              <button type="button" onclick="document.getElementById('cm-color').value='#60a5fa'" style="width:22px;height:22px;border-radius:6px;background:#60a5fa;border:none;cursor:pointer;"></button>
+              <button type="button" onclick="document.getElementById('cm-color').value='#a78bfa'" style="width:22px;height:22px;border-radius:6px;background:#a78bfa;border:none;cursor:pointer;"></button>
+              <button type="button" onclick="document.getElementById('cm-color').value='#34d399'" style="width:22px;height:22px;border-radius:6px;background:#34d399;border:none;cursor:pointer;"></button>
+              <button type="button" onclick="document.getElementById('cm-color').value='#f87171'" style="width:22px;height:22px;border-radius:6px;background:#f87171;border:none;cursor:pointer;"></button>
+              <button type="button" onclick="document.getElementById('cm-color').value='#fb923c'" style="width:22px;height:22px;border-radius:6px;background:#fb923c;border:none;cursor:pointer;"></button>
+              <button type="button" onclick="document.getElementById('cm-color').value='#38bdf8'" style="width:22px;height:22px;border-radius:6px;background:#38bdf8;border:none;cursor:pointer;"></button>
+              <button type="button" onclick="document.getElementById('cm-color').value='#94a3b8'" style="width:22px;height:22px;border-radius:6px;background:#94a3b8;border:none;cursor:pointer;"></button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-primary" style="flex:1; justify-content:center;" onclick="saveCat()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg>
+          <span id="cm-save-label">Thêm danh mục</span>
+        </button>
+        <button class="btn btn-ghost" onclick="resetCatForm()">Hủy</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===================== CATEGORIES =====================
+const DEFAULT_CATS = {
+  expense: [
+    { id:'food',          name:'Ăn uống',   icon:'🍜', color:'#fbbf24' },
+    { id:'transport',     name:'Di chuyển', icon:'🚗', color:'#60a5fa' },
+    { id:'shopping',      name:'Mua sắm',   icon:'🛍️', color:'#a78bfa' },
+    { id:'health',        name:'Sức khỏe',  icon:'💊', color:'#34d399' },
+    { id:'entertainment', name:'Giải trí',  icon:'🎮', color:'#f87171' },
+    { id:'education',     name:'Học tập',   icon:'📚', color:'#fb923c' },
+    { id:'housing',       name:'Nhà ở',     icon:'🏠', color:'#38bdf8' },
+    { id:'debt',          name:'Nợ ngân hàng', icon:'🏦', color:'#fb7185' },
+    { id:'bills',         name:'Hóa đơn',     icon:'📄', color:'#38bdf8' },
+    { id:'other',         name:'Khác',      icon:'📦', color:'#94a3b8' },
+  ],
+  income: [
+    { id:'income', name:'Thu nhập', icon:'💵', color:'#34d399' },
+    { id:'other',  name:'Khác',     icon:'📦', color:'#94a3b8' },
+  ]
+};
+
+function loadCats() {
+  try {
+    const u = sessionStorage.getItem('ct_user') || 'default';
+    const saved = localStorage.getItem(`ct_${u}_cats`);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // Luon merge voi DEFAULT_CATS de dam bao danh muc mac dinh moi luon co mat
+      DEFAULT_CATS.expense.forEach(def => {
+        if (!parsed.expense.find(c => c.id === def.id)) parsed.expense.push(def);
+      });
+      DEFAULT_CATS.income.forEach(def => {
+        if (!parsed.income.find(c => c.id === def.id)) parsed.income.push(def);
+      });
+      return parsed;
+    }
+  } catch(e) {}
+  return JSON.parse(JSON.stringify(DEFAULT_CATS));
+}
+function saveCatsLocal() {
+  try {
+    const u = sessionStorage.getItem('ct_user') || 'default';
+    localStorage.setItem(`ct_${u}_cats`, JSON.stringify(CATS));
+  } catch(e) {}
+}
+async function saveCatsToFirebase() {
+  saveCatsLocal();
+  if (!db || !window._fbLib) return;
+  const currentUser = sessionStorage.getItem('ct_user') || 'default';
+  try {
+    const { doc, setDoc } = window._fbLib;
+    await setDoc(doc(db, `users_${currentUser}_settings`, 'categories'), CATS);
+    setSyncStatus('ok', 'Đã đồng bộ');
+  } catch(e) {
+    console.error('Save cats error:', e);
+  }
+}
+let CATS = loadCats();
+
+// ===================== STATE =====================
+let state = {
+  transactions: [],
+  budgets: {},
+  totalBudget: 0,
+  editId: null,
+  txType: 'expense',
+  mType: 'expense',
+};
+
+let donutChart = null, trendChart = null, monthlyChart = null;
+let db = null, fbLib = null;
+let isSaving = false;
+let reportRange = 6; // default: 6 months
+
+// ===================== LOGIN (Google OAuth 2.0 / Google Identity Services) =====================
+
+// Decodes the JWT ID token Google returns so we can read the user's email/name.
+// Note: this is a client-side convenience decode only, NOT signature verification.
+function parseJwt(token) {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')
+    );
+    return JSON.parse(jsonPayload);
+  } catch (e) {
+    return null;
+  }
+}
+
+function applyLoggedInUser(profile) {
+  sessionStorage.setItem('ct_user', profile.email);
+  sessionStorage.setItem('ct_user_name', profile.name || profile.email);
+  sessionStorage.setItem('ct_user_picture', profile.picture || '');
+  document.getElementById('login-screen').classList.add('hide');
+  const sidebar_username = document.getElementById('sidebar-username');
+  if (sidebar_username) sidebar_username.textContent = profile.name || profile.email;
+}
+
+// This is the callback registered via data-callback="handleGoogleSignIn" on #g_id_onload.
+// Google calls it automatically with a credential response after a successful sign-in.
+function handleGoogleSignIn(response) {
+  const errEl = document.getElementById('login-error');
+  const profile = parseJwt(response.credential);
+  if (!profile || !profile.email) {
+    errEl.classList.add('show');
+    return;
+  }
+  errEl.classList.remove('show');
+  applyLoggedInUser(profile);
+  toast('Xin chào, ' + (profile.name || profile.email) + '! 👋', 'success');
+}
+
+(function checkLoginOnLoad() {
+  const u = sessionStorage.getItem('ct_user');
+  if (u) {
+    document.getElementById('login-screen').classList.add('hide');
+    const sidebar_username = document.getElementById('sidebar-username');
+    if (sidebar_username) sidebar_username.textContent = sessionStorage.getItem('ct_user_name') || u;
+  }
+})();
+
+function doLogout() {
+  if (!confirm('Đăng xuất khỏi tài khoản?')) return;
+  sessionStorage.removeItem('ct_user');
+  sessionStorage.removeItem('ct_user_name');
+  sessionStorage.removeItem('ct_user_picture');
+  if (window.google && google.accounts && google.accounts.id) {
+    google.accounts.id.disableAutoSelect();
+  }
+  location.reload();
+}
+
+// ===================== FIREBASE INIT =====================
+window.addEventListener('firebase-ready', () => {
+  db = window._db;
+  fbLib = window._fbLib;
+  loadFromFirebase();
+});
+
+// Fallback timeout
+setTimeout(() => {
+  if (!db) {
+    setSyncStatus('error', 'Lỗi kết nối');
+    hideLoading();
+    // fallback to localStorage
+    loadLocal();
+    initApp();
+  }
+}, 8000);
+
+// ===================== SYNC STATUS =====================
+function setSyncStatus(state, label) {
+  const dot = document.getElementById('sync-dot');
+  const lbl = document.getElementById('sync-label');
+  dot.className = 'sync-dot' + (state === 'loading' ? ' loading' : state === 'error' ? ' error' : '');
+  if (lbl) lbl.textContent = label;
+}
+
+// ===================== FIREBASE STORAGE =====================
+async function loadFromFirebase() {
+  setSyncStatus('loading', 'Đang tải...');
+  const currentUser = sessionStorage.getItem('ct_user') || 'default';
+  try {
+    const { collection, getDocs, query, orderBy, onSnapshot } = fbLib;
+
+    // User-namespaced collections
+    const txCol = `users_${currentUser}_transactions`;
+    const settCol = `users_${currentUser}_settings`;
+
+    // Load transactions
+    const txSnap = await getDocs(collection(db, txCol));
+    state.transactions = [];
+    txSnap.forEach(d => state.transactions.push({ id: d.id, ...d.data() }));
+    state.transactions.sort((a,b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
+
+    // Load settings
+    const settSnap = await getDocs(collection(db, settCol));
+    settSnap.forEach(d => {
+      const data = d.data();
+      if (d.id === 'budgets') state.budgets = data;
+      if (d.id === 'totalBudget') state.totalBudget = data.value || 0;
+      if (d.id === 'categories' && data.expense && data.income) {
+        // Merge: giữ danh mục Firebase, bổ sung mặc định mới nếu chưa có
+        const merged = JSON.parse(JSON.stringify(data));
+        DEFAULT_CATS.expense.forEach(def => {
+          if (!merged.expense.find(c => c.id === def.id)) merged.expense.push(def);
+        });
+        DEFAULT_CATS.income.forEach(def => {
+          if (!merged.income.find(c => c.id === def.id)) merged.income.push(def);
+        });
+        CATS = merged;
+        saveCatsLocal(); // đồng bộ xuống localStorage
+      }
+    });
+
+    // Neu Firebase chua co categories doc → save CATS hien tai len (bao gom default moi)
+    const hasCatDoc = [...settSnap.docs].some(d => d.id === 'categories');
+    if (!hasCatDoc) {
+      saveCatsToFirebase();
+    }
+
+    setSyncStatus('ok', 'Đã đồng bộ');
+    hideLoading();
+    initApp();
+
+    // Real-time listener for transactions
+    onSnapshot(collection(db, txCol), snap => {
+      state.transactions = [];
+      snap.forEach(d => state.transactions.push({ id: d.id, ...d.data() }));
+      state.transactions.sort((a,b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
+      refreshActivePage();
+      setSyncStatus('ok', 'Đã đồng bộ');
+    });
+
+  } catch(e) {
+    console.error('Firebase load error:', e);
+    setSyncStatus('error', 'Lỗi kết nối');
+    loadLocal();
+    hideLoading();
+    initApp();
+  }
+}
+
+async function saveToFirebase() {
+  if (!db) { saveLocal(); return; }
+  const currentUser = sessionStorage.getItem('ct_user') || 'default';
+  setSyncStatus('loading', 'Đang lưu...');
+  try {
+    const { doc, setDoc, collection } = fbLib;
+    const settCol = `users_${currentUser}_settings`;
+    await setDoc(doc(db, settCol, 'budgets'), state.budgets);
+    await setDoc(doc(db, settCol, 'totalBudget'), { value: state.totalBudget });
+    await setDoc(doc(db, settCol, 'categories'), CATS);
+    setSyncStatus('ok', 'Đã đồng bộ');
+  } catch(e) {
+    console.error('Firebase save error:', e);
+    setSyncStatus('error', 'Lỗi lưu');
+    saveLocal();
+  }
+}
+
+async function saveTxToFirebase(tx) {
+  if (!db) { saveLocal(); return; }
+  const currentUser = sessionStorage.getItem('ct_user') || 'default';
+  setSyncStatus('loading', 'Đang lưu...');
+  try {
+    const { doc, setDoc } = fbLib;
+    await setDoc(doc(db, `users_${currentUser}_transactions`, tx.id), tx);
+    setSyncStatus('ok', 'Đã đồng bộ');
+    saveLocal();
+  } catch(e) {
+    console.error('Firebase tx save error:', e);
+    setSyncStatus('error', 'Lỗi lưu');
+    saveLocal();
+  }
+}
+
+async function deleteTxFromFirebase(id) {
+  if (!db) { saveLocal(); return; }
+  const currentUser = sessionStorage.getItem('ct_user') || 'default';
+  setSyncStatus('loading', 'Đang xóa...');
+  try {
+    const { doc, deleteDoc } = fbLib;
+    await deleteDoc(doc(db, `users_${currentUser}_transactions`, id));
+    setSyncStatus('ok', 'Đã đồng bộ');
+    saveLocal();
+  } catch(e) {
+    console.error('Firebase delete error:', error);
+    setSyncStatus('error', 'Lỗi xóa');
+    saveLocal();
+  }
+}
+
+// ===================== LOCAL STORAGE FALLBACK =====================
+function lsKey(k) {
+  const u = sessionStorage.getItem('ct_user') || 'default';
+  return `ct_${u}_${k}`;
+}
+function saveLocal() {
+  try {
+    localStorage.setItem(lsKey('transactions'), JSON.stringify(state.transactions));
+    localStorage.setItem(lsKey('budgets'), JSON.stringify(state.budgets));
+    localStorage.setItem(lsKey('totalBudget'), String(state.totalBudget));
+  } catch(e) {}
+}
+function loadLocal() {
+  try {
+    state.transactions = JSON.parse(localStorage.getItem(lsKey('transactions')) || '[]');
+    state.budgets = JSON.parse(localStorage.getItem(lsKey('budgets')) || '{}');
+    state.totalBudget = Number(localStorage.getItem(lsKey('totalBudget')) || '0');
+  } catch(e) { state.transactions = []; }
+}
+
+// ===================== LOADING =====================
+function hideLoading() {
+  const ls = document.getElementById('loading-screen');
+  ls.classList.add('hide');
+  setTimeout(() => ls.remove(), 400);
+}
+
+// ===================== UTILS =====================
+function fmt(n) {
+  return new Intl.NumberFormat('vi-VN').format(Math.round(n)) + ' ₫';
+}
+function fmtShort(n) {
+  if (n >= 1e9) return (n/1e9).toFixed(1) + 'T';
+  if (n >= 1e6) return (n/1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return (n/1e3).toFixed(0) + 'K';
+  return n;
+}
+function getMonthKey(date) { return date.slice(0,7); }
+function thisMonth() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+function getCat(id) {
+  return [...CATS.expense, ...CATS.income].find(c => c.id === id) || { name:'Khác', icon:'📦', color:'#94a3b8' };
+}
+function genId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+}
+function getThisMonthTx() {
+  const m = thisMonth();
+  return state.transactions.filter(t => getMonthKey(t.date) === m);
+}
+function addAmount(v) {
+  const el = document.getElementById('f-amount');
+  el.value = (parseFloat(el.value) || 0) + v;
+}
+
+// ===================== INIT APP =====================
+function initApp() {
+  document.getElementById('f-date').value = new Date().toISOString().slice(0,10);
+  setType('expense');
+  renderDashboard();
+}
+
+function refreshActivePage() {
+  const pages = ['dashboard','transactions','add','budget','reports','database'];
+  for (const p of pages) {
+    if (document.getElementById('page-'+p)?.classList.contains('active')) {
+      if (p === 'dashboard') renderDashboard();
+      if (p === 'transactions') renderTransactions();
+      if (p === 'budget') renderBudget();
+      if (p === 'reports') renderReports();
+      if (p === 'database') renderDbPage();
+      break;
+    }
+  }
+}
+
+// ===================== NAVIGATION =====================
+let activePage = 'dashboard';
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+
+  // Desktop nav
+  document.querySelectorAll('.nav-item').forEach(n => {
+    n.classList.toggle('active', n.dataset.page === page);
+  });
+  // Mobile bottom nav
+  document.querySelectorAll('.bn-item').forEach(n => {
+    n.classList.toggle('active', n.dataset.page === page);
+  });
+
+  activePage = page;
+  if (page === 'dashboard') renderDashboard();
+  if (page === 'transactions') { populateCatFilter(); renderTransactions(); }
+  if (page === 'add') { populateFormCats(); resetAddForm(); }
+  if (page === 'budget') renderBudget();
+  if (page === 'reports') renderReports();
+  if (page === 'database') renderDbPage();
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ===================== SELECTS =====================
+function populateFormCats() { populateCatSelect('f-cat', state.txType); }
+function populateCatSelect(id, type) {
+  const sel = document.getElementById(id);
+  if (!sel) return;
+  sel.innerHTML = '';
+  CATS[type || 'expense'].forEach(c => {
+    const o = document.createElement('option');
+    o.value = c.id;
+    o.textContent = c.icon + ' ' + c.name;
+    sel.appendChild(o);
+  });
+}
+function populateCatFilter() {
+  const sel = document.getElementById('filter-cat');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Tất cả danh mục</option>';
+  [...CATS.expense, ...CATS.income].filter((c,i,a) => a.findIndex(x=>x.id===c.id)===i).forEach(c => {
+    const o = document.createElement('option');
+    o.value = c.id;
+    o.textContent = c.icon + ' ' + c.name;
+    sel.appendChild(o);
+  });
+  sel.value = cur;
+
+  const msel = document.getElementById('filter-month');
+  const curM = msel.value;
+  msel.innerHTML = '<option value="">Tất cả tháng</option>';
+  [...new Set(state.transactions.map(t => getMonthKey(t.date)))].sort().reverse().forEach(m => {
+    const [y,mo] = m.split('-');
+    const o = document.createElement('option');
+    o.value = m;
+    o.textContent = `Tháng ${mo}/${y}`;
+    msel.appendChild(o);
+  });
+  msel.value = curM;
+}
+
+// ===================== TYPE TOGGLE =====================
+function setType(type) {
+  state.txType = type;
+  document.getElementById('tab-expense').className = 'type-tab' + (type==='expense' ? ' active expense' : '');
+  document.getElementById('tab-income').className  = 'type-tab' + (type==='income'  ? ' active income' : '');
+  populateFormCats();
+}
+function setModalType(type) {
+  state.mType = type;
+  document.getElementById('m-tab-expense').className = 'type-tab' + (type==='expense' ? ' active expense' : '');
+  document.getElementById('m-tab-income').className  = 'type-tab' + (type==='income'  ? ' active income' : '');
+  populateCatSelect('m-cat', type);
+}
+
+// ===================== ADD / SAVE =====================
+function resetAddForm() {
+  document.getElementById('f-desc').value = '';
+  document.getElementById('f-amount').value = '';
+  document.getElementById('f-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('f-note').value = '';
+  document.getElementById('add-page-title').textContent = 'Thêm giao dịch';
+  document.getElementById('save-btn-text').textContent = 'Lưu giao dịch';
+  state.editId = null;
+  setType('expense');
+}
+
+async function saveTransaction() {
+  const desc = document.getElementById('f-desc').value.trim();
+  const amount = parseFloat(document.getElementById('f-amount').value);
+  const date = document.getElementById('f-date').value;
+  const cat = document.getElementById('f-cat').value;
+  const note = document.getElementById('f-note').value.trim();
+
+  if (!desc) { toast('Vui lòng nhập mô tả!', 'error'); return; }
+  if (!amount || amount <= 0) { toast('Vui lòng nhập số tiền hợp lệ!', 'error'); return; }
+  if (!date) { toast('Vui lòng chọn ngày!', 'error'); return; }
+
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true;
+
+  if (state.editId) {
+    const tx = state.transactions.find(t => t.id === state.editId);
+    if (tx) {
+      tx.desc = desc; tx.amount = amount; tx.date = date;
+      tx.cat = cat; tx.note = note; tx.type = state.txType;
+      await saveTxToFirebase(tx);
+    }
+    toast('Đã cập nhật!', 'success');
+  } else {
+    const tx = { id: genId(), desc, amount, date, cat, note, type: state.txType, createdAt: Date.now() };
+    state.transactions.unshift(tx);
+    await saveTxToFirebase(tx);
+    toast('Đã lưu giao dịch! ✓', 'success');
+  }
+
+  btn.disabled = false;
+  resetAddForm();
+  renderDashboard();
+  showPage('dashboard');
+}
+
+function cancelEdit() {
+  state.editId = null;
+  resetAddForm();
+  showPage('transactions');
+}
+
+async function deleteTransaction(id) {
+  if (!confirm('Xóa giao dịch này?')) return;
+  state.transactions = state.transactions.filter(t => t.id !== id);
+  await deleteTxFromFirebase(id);
+  renderTransactions();
+  renderDashboard();
+  toast('Đã xóa!', 'success');
+}
+
+// ===================== EDIT MODAL =====================
+function openEdit(id) {
+  const tx = state.transactions.find(t => t.id === id);
+  if (!tx) return;
+  state.editId = id; state.mType = tx.type;
+  setModalType(tx.type);
+  populateCatSelect('m-cat', tx.type);
+  document.getElementById('m-desc').value = tx.desc;
+  document.getElementById('m-amount').value = tx.amount;
+  document.getElementById('m-date').value = tx.date;
+  document.getElementById('m-cat').value = tx.cat;
+  document.getElementById('m-note').value = tx.note || '';
+  document.getElementById('edit-modal').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('edit-modal').classList.remove('open');
+  state.editId = null;
+}
+async function updateTransaction() {
+  const tx = state.transactions.find(t => t.id === state.editId);
+  if (!tx) return;
+  tx.desc   = document.getElementById('m-desc').value.trim();
+  tx.amount = parseFloat(document.getElementById('m-amount').value);
+  tx.date   = document.getElementById('m-date').value;
+  tx.cat    = document.getElementById('m-cat').value;
+  tx.note   = document.getElementById('m-note').value.trim();
+  tx.type   = state.mType;
+  await saveTxToFirebase(tx);
+  closeModal();
+  renderTransactions();
+  renderDashboard();
+  toast('Đã cập nhật!', 'success');
+}
+
+// ===================== RENDER TX ITEM =====================
+function txHTML(tx, showActions = true) {
+  const cat = getCat(tx.cat);
+  const dateStr = new Date(tx.date + 'T00:00:00').toLocaleDateString('vi-VN', { day:'2-digit', month:'2-digit' });
+  const sign = tx.type === 'expense' ? '-' : '+';
+  const cls = tx.type;
+  return `
+    <div class="tx-item">
+      <div class="tx-icon" style="background:${cat.color}20;">${cat.icon}</div>
+      <div class="tx-info">
+        <div class="tx-name">${tx.desc}</div>
+        <div class="tx-meta">
+          <span>${dateStr}</span>
+          <span class="badge cat-${tx.cat}">${cat.name}</span>
+          ${tx.note ? `<span style="color:var(--muted2)">· ${tx.note}</span>` : ''}
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:4px;">
+        <div class="tx-amount ${cls} amount-display">${sign}${fmt(tx.amount)}</div>
+        ${showActions ? `
+        <button class="icon-btn" onclick="openEdit('${tx.id}')" title="Sửa">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+        <button class="icon-btn del" onclick="deleteTransaction('${tx.id}')" title="Xóa">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+        </button>` : ''}
+      </div>
+    </div>`;
+}
+
+// ===================== DASHBOARD MONTH FILTER =====================
+function populateDashMonthSelect() {
+  const sel = document.getElementById('dash-filter-month');
+  if (!sel) return;
+  const curVal = sel.value;
+  sel.innerHTML = '';
+  const tm = thisMonth();
+  const months = [...new Set(state.transactions.map(t => getMonthKey(t.date)))];
+  if (!months.includes(tm)) months.push(tm);
+  months.sort().reverse();
+  months.forEach(m => {
+    const [y, mo] = m.split('-');
+    const o = document.createElement('option');
+    o.value = m;
+    o.textContent = (m === tm ? '📅 ' : '') + `Tháng ${mo}/${y}`;
+    sel.appendChild(o);
+  });
+  if (curVal && months.includes(curVal)) {
+    sel.value = curVal;
+  } else {
+    sel.value = tm;
+  }
+}
+
+function getDashSelectedMonth() {
+  const sel = document.getElementById('dash-filter-month');
+  return sel ? (sel.value || thisMonth()) : thisMonth();
+}
+
+function calcCumulativeBalance(upToMonth) {
+  // Sum (income - expense) for every month up to and including upToMonth
+  const allMonths = [...new Set(state.transactions.map(t => getMonthKey(t.date)))]
+    .filter(m => m <= upToMonth)
+    .sort();
+  let balance = 0;
+  for (const m of allMonths) {
+    const mTxs = state.transactions.filter(t => getMonthKey(t.date) === m);
+    balance += mTxs.filter(t => t.type === 'income').reduce((s,t) => s+t.amount, 0);
+    balance -= mTxs.filter(t => t.type === 'expense').reduce((s,t) => s+t.amount, 0);
+  }
+  return balance;
+}
+
+function calcCumulativeBalanceBefore(month) {
+  // Sum up to the month BEFORE the given month
+  const allMonths = [...new Set(state.transactions.map(t => getMonthKey(t.date)))]
+    .filter(m => m < month)
+    .sort();
+  let balance = 0;
+  for (const m of allMonths) {
+    const mTxs = state.transactions.filter(t => getMonthKey(t.date) === m);
+    balance += mTxs.filter(t => t.type === 'income').reduce((s,t) => s+t.amount, 0);
+    balance -= mTxs.filter(t => t.type === 'expense').reduce((s,t) => s+t.amount, 0);
+  }
+  return balance;
+}
+
+// ===================== DASHBOARD =====================
+function renderDashboard() {
+  const now = new Date();
+  document.getElementById('dashboard-date').textContent =
+    now.toLocaleDateString('vi-VN', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+  // Populate & read filter
+  populateDashMonthSelect();
+  const selMonth = getDashSelectedMonth();
+  const [selY, selMo] = selMonth.split('-');
+  const monthLabel = `Tháng ${parseInt(selMo)}/${selY}`;
+  const isCurrentMonth = selMonth === thisMonth();
+
+  // Transactions for selected month
+  const txs = state.transactions.filter(t => getMonthKey(t.date) === selMonth);
+  const income  = txs.filter(t => t.type === 'income').reduce((s,t) => s+t.amount, 0);
+  const expense = txs.filter(t => t.type === 'expense').reduce((s,t) => s+t.amount, 0);
+  const monthlyNet = income - expense;
+
+  // Cumulative balance (carry-over from previous months + this month)
+  const carryOver = calcCumulativeBalanceBefore(selMonth);
+  const cumulativeBalance = carryOver + monthlyNet;
+
+  // Balance card
+  const balEl = document.getElementById('stat-balance');
+  balEl.textContent = (cumulativeBalance < 0 ? '-' : '') + fmt(Math.abs(cumulativeBalance));
+  balEl.className = 'balance-value amount-display' + (cumulativeBalance < 0 ? ' negative' : '');
+
+  document.getElementById('balance-card-label').textContent = 'Số dư tích lũy';
+  const balMonthLbl = document.getElementById('balance-month-label');
+  balMonthLbl.textContent = `Đến ${monthLabel}${cumulativeBalance < 0 ? ' · Đang âm ⚠️' : ' · Tổng cộng dồn'}`;
+
+  // Carryover detail card
+  const ccCard = document.getElementById('carryover-card');
+  const hasHistory = state.transactions.some(t => getMonthKey(t.date) < selMonth);
+  if (ccCard) {
+    ccCard.style.display = hasHistory ? '' : 'none';
+    if (hasHistory) {
+      const covEl = document.getElementById('carryover-value');
+      covEl.textContent = (carryOver < 0 ? '-' : '+') + fmt(Math.abs(carryOver));
+      covEl.style.color = carryOver < 0 ? 'var(--red)' : 'var(--accent)';
+      const netEl = document.getElementById('monthly-net-value');
+      netEl.textContent = (monthlyNet < 0 ? '-' : '+') + fmt(Math.abs(monthlyNet));
+      netEl.style.color = monthlyNet < 0 ? 'var(--red)' : 'var(--accent)';
+      const cumDet = document.getElementById('cumulative-detail');
+      cumDet.textContent = (cumulativeBalance < 0 ? '-' : '') + fmt(Math.abs(cumulativeBalance));
+      cumDet.style.color = cumulativeBalance < 0 ? 'var(--red)' : 'var(--accent)';
+    }
+  }
+
+  // Stat cards
+  document.getElementById('stat-income').textContent  = fmt(income);
+  document.getElementById('stat-expense').textContent = fmt(expense);
+  document.getElementById('stat-count').textContent   = `${txs.length} giao dịch`;
+  const subLabel = isCurrentMonth ? 'Tháng này' : monthLabel;
+  const incSub = document.getElementById('stat-income-sub');
+  const expSub = document.getElementById('stat-expense-sub');
+  const cntLbl = document.getElementById('stat-count-label');
+  if (incSub) incSub.textContent = subLabel;
+  if (expSub) expSub.textContent = subLabel;
+  if (cntLbl) cntLbl.textContent = `Giao dịch — ${subLabel}`;
+
+  // Recent transactions: show selected month's transactions
+  const recent = txs.slice(0, 6);
+  const rl = document.getElementById('recent-list');
+  rl.innerHTML = recent.length === 0
+    ? `<div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>
+        <p>Chưa có giao dịch. <a href="#" onclick="showPage('add'); return false;" style="color:var(--accent)">Thêm ngay</a></p>
+      </div>`
+    : txs.slice(0, 6).map(t => txHTML(t, true)).join('');
+
+  // Donut chart subtitle
+  const donutSub = document.getElementById('donut-subtitle');
+  if (donutSub) donutSub.textContent = subLabel;
+  renderDonut(txs.filter(t => t.type === 'expense'));
+
+  // Sidebar budget (always based on current month)
+  const curMonthExpense = getThisMonthTx().filter(t => t.type === 'expense').reduce((s,t) => s+t.amount, 0);
+  if (state.totalBudget > 0) {
+    const pct = Math.min(100, (curMonthExpense / state.totalBudget) * 100);
+    const bar = document.getElementById('sidebar-budget-bar');
+    if (bar) {
+      bar.style.width = pct + '%';
+      bar.className = 'budget-bar' + (pct > 90 ? ' danger' : pct > 70 ? ' warning' : '');
+      document.getElementById('sidebar-budget-pct').textContent = Math.round(pct) + '% đã dùng';
+    }
+  }
+
+  renderTrend();
+}
+
+function renderDonut(expenses) {
+  const ctx = document.getElementById('donut-chart').getContext('2d');
+  if (donutChart) donutChart.destroy();
+  const catMap = {};
+  expenses.forEach(t => { catMap[t.cat] = (catMap[t.cat]||0) + t.amount; });
+  const cats = CATS.expense.filter(c => catMap[c.id]).sort((a,b) => catMap[b.id] - catMap[a.id]);
+  const total = expenses.reduce((s,t) => s+t.amount, 0);
+
+  // Render breakdown legend list sorted high → low
+  const legendEl = document.getElementById('donut-legend-list');
+  if (legendEl) {
+    if (cats.length === 0) {
+      legendEl.innerHTML = '';
+    } else {
+      legendEl.innerHTML = cats.map(c => {
+        const amt = catMap[c.id];
+        const pct = total > 0 ? (amt/total*100) : 0;
+        return `<div class="donut-legend-item">
+          <div class="donut-legend-dot" style="background:${c.color};"></div>
+          <span style="font-size:16px; width:22px; text-align:center;">${c.icon}</span>
+          <div class="donut-legend-name">${c.name}</div>
+          <div class="donut-legend-pct" style="color:${c.color};">${Math.round(pct)}%</div>
+          <div class="donut-legend-amt amount-display">${fmt(amt)}</div>
+        </div>`;
+      }).join('');
+    }
+  }
+
+  if (cats.length === 0) {
+    ctx.clearRect(0,0,999,999);
+    ctx.fillStyle = 'rgba(148,163,184,0.15)';
+    ctx.beginPath(); ctx.arc(ctx.canvas.width/2, ctx.canvas.height/2, 60, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#64748b'; ctx.font = '12px Be Vietnam Pro';
+    ctx.textAlign = 'center';
+    ctx.fillText('Chưa có dữ liệu', ctx.canvas.width/2, ctx.canvas.height/2 + 5);
+    return;
+  }
+
+  // Center text plugin
+  const centerPlugin = {
+    id: 'centerTotalText',
+    afterDraw(chart) {
+      if (chart.config.type !== 'doughnut') return;
+      const { ctx: c, chartArea } = chart;
+      if (!chartArea) return;
+      const cx = (chartArea.left + chartArea.right) / 2;
+      const cy = (chartArea.top + chartArea.bottom) / 2;
+      c.save();
+      const shortTotal = fmtShort(total);
+      c.font = 'bold 14px Be Vietnam Pro';
+      c.fillStyle = '#f1f5f9';
+      c.textAlign = 'center';
+      c.textBaseline = 'middle';
+      c.fillText(shortTotal + '₫', cx, cy - 7);
+      c.font = '10px Be Vietnam Pro';
+      c.fillStyle = '#94a3b8';
+      c.fillText('Tổng chi', cx, cy + 10);
+      c.restore();
+    }
+  };
+
+  donutChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: cats.map(c => c.name),
+      datasets: [{ data: cats.map(c => catMap[c.id]), backgroundColor: cats.map(c => c.color), borderWidth: 0, hoverOffset: 6 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '65%',
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: c => {
+              const amt = c.parsed;
+              const pct = total > 0 ? Math.round(amt/total*100) : 0;
+              return '  ' + new Intl.NumberFormat('vi-VN').format(amt) + ' ₫  (' + pct + '%)';
+            }
+          }
+        }
+      }
+    },
+    plugins: [centerPlugin]
+  });
+}
+
+function renderTrend() {
+  const ctx = document.getElementById('trend-chart').getContext('2d');
+  if (trendChart) trendChart.destroy();
+  const months = [];
+  for (let i=5; i>=0; i--) {
+    const d = new Date(); d.setMonth(d.getMonth()-i);
+    months.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
+  }
+  const incomes  = months.map(m => state.transactions.filter(t=>getMonthKey(t.date)===m&&t.type==='income').reduce((s,t)=>s+t.amount,0));
+  const expenses = months.map(m => state.transactions.filter(t=>getMonthKey(t.date)===m&&t.type==='expense').reduce((s,t)=>s+t.amount,0));
+  const labels   = months.map(m => { const[y,mo]=m.split('-'); return 'T'+mo+'/'+y.slice(2); });
+
+  trendChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Thu nhập', data: incomes,  backgroundColor: 'rgba(52,211,153,0.65)', borderRadius: 5 },
+        { label: 'Chi tiêu', data: expenses, backgroundColor: 'rgba(248,113,113,0.65)', borderRadius: 5 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#94a3b8', font: { size: 11, family: 'Be Vietnam Pro' }, boxWidth: 9 } },
+        tooltip: { callbacks: { label: c => ' ' + new Intl.NumberFormat('vi-VN').format(c.parsed.y) + ' ₫' } }
+      },
+      scales: {
+        x: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+        y: { ticks: { color: '#94a3b8', font: { size: 10 }, callback: v => fmtShort(v)+'₫' }, grid: { color: 'rgba(255,255,255,0.05)' } }
+      }
+    }
+  });
+}
+
+// ===================== TRANSACTIONS LIST =====================
+function renderTransactions() {
+  const search = (document.getElementById('search-input')?.value||'').toLowerCase();
+  const fType  = document.getElementById('filter-type')?.value||'';
+  const fCat   = document.getElementById('filter-cat')?.value||'';
+  const fMonth = document.getElementById('filter-month')?.value||'';
+
+  let txs = state.transactions.filter(t => {
+    if (fType  && t.type !== fType) return false;
+    if (fCat   && t.cat !== fCat) return false;
+    if (fMonth && getMonthKey(t.date) !== fMonth) return false;
+    if (search && !t.desc.toLowerCase().includes(search) && !(t.note||'').toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  const el = document.getElementById('tx-list');
+  if (txs.length === 0) {
+    el.innerHTML = `<div class="empty-state">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <p>Không tìm thấy giao dịch nào</p>
+    </div>`;
+    return;
+  }
+  el.innerHTML = txs.map(t => txHTML(t, true)).join('');
+}
+
+// ===================== BUDGET =====================
+function renderBudget() {
+  document.getElementById('total-budget-input').value = state.totalBudget || '';
+  populateCatSelect('budget-cat', 'expense');
+
+  const txs = getThisMonthTx().filter(t => t.type === 'expense');
+  const totalExp = txs.reduce((s,t)=>s+t.amount,0);
+  const tb = state.totalBudget;
+  const tbEl = document.getElementById('total-budget-status');
+
+  if (tb > 0) {
+    const pct = Math.min(100, (totalExp/tb)*100);
+    const color = pct > 90 ? '#f87171' : pct > 70 ? '#fbbf24' : '#34d399';
+    tbEl.innerHTML = `
+      <div class="bbar-wrap" style="margin-bottom:6px;"><div class="bbar" style="width:${pct}%; background:${color};"></div></div>
+      <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--muted);">
+        <span>Đã chi: ${fmt(totalExp)}</span>
+        <span>${Math.round(pct)}%</span>
+      </div>
+      <div style="font-size:12px; color:var(--muted); margin-top:4px;">Còn lại: <span style="color:${color}; font-weight:600;">${fmt(Math.max(0,tb-totalExp))}</span></div>`;
+  } else {
+    tbEl.innerHTML = '<div style="font-size:12px; color:var(--muted); margin-top:8px;">Chưa đặt ngân sách tổng</div>';
+  }
+
+  const bl = document.getElementById('budget-list');
+  const cats = CATS.expense.filter(c => state.budgets[c.id]);
+  if (cats.length === 0) {
+    bl.innerHTML = '<div class="empty-state"><p>Chưa có ngân sách danh mục nào</p></div>';
+    return;
+  }
+  bl.innerHTML = cats.map(c => {
+    const spent = txs.filter(t=>t.cat===c.id).reduce((s,t)=>s+t.amount,0);
+    const limit = state.budgets[c.id];
+    const pct = Math.min(100, (spent/limit)*100);
+    const color = pct > 90 ? '#f87171' : pct > 70 ? '#fbbf24' : c.color;
+    return `<div class="budget-item">
+      <div style="font-size:24px; width:40px; text-align:center; flex-shrink:0;">${c.icon}</div>
+      <div class="budget-info">
+        <div class="budget-name">
+          <span>${c.name}</span>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <span style="font-size:12px; color:${color}; font-weight:600;">${fmt(spent)}</span>
+            <span style="font-size:12px; color:var(--muted);">/ ${fmt(limit)}</span>
+            <button class="icon-btn del" onclick="deleteBudget('${c.id}')" style="padding:4px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="bbar-wrap"><div class="bbar" style="width:${pct}%; background:${color};"></div></div>
+        <div class="budget-amounts" style="margin-top:5px;">Còn lại: ${fmt(Math.max(0,limit-spent))} · ${Math.round(pct)}% đã dùng</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function saveTotalBudget() {
+  state.totalBudget = parseFloat(document.getElementById('total-budget-input').value) || 0;
+  await saveToFirebase();
+  renderBudget();
+  renderDashboard();
+  toast('Đã lưu ngân sách!', 'success');
+}
+
+async function saveCatBudget() {
+  const cat = document.getElementById('budget-cat').value;
+  const limit = parseFloat(document.getElementById('budget-limit').value);
+  if (!limit || limit <= 0) { toast('Nhập số tiền hợp lệ!', 'error'); return; }
+  state.budgets[cat] = limit;
+  document.getElementById('budget-limit').value = '';
+  await saveToFirebase();
+  renderBudget();
+  toast('Đã lưu ngân sách danh mục!', 'success');
+}
+
+async function deleteBudget(catId) {
+  delete state.budgets[catId];
+  await saveToFirebase();
+  renderBudget();
+  toast('Đã xóa ngân sách!', 'success');
+}
+
+function setReportRange(n) {
+  reportRange = n;
+  // Update pill active state
+  document.querySelectorAll('.range-pill').forEach(p => {
+    p.classList.toggle('active', parseInt(p.dataset.range) === n);
+  });
+  renderReports();
+}
+
+// ===================== REPORTS =====================
+function renderReports() {
+  // "Chi tiêu theo danh mục" — use current month (tháng này)
+  const txsThisMonth = getThisMonthTx();
+  const expenses = txsThisMonth.filter(t => t.type === 'expense');
+  const totalExp = expenses.reduce((s,t) => s+t.amount, 0);
+  const catTitle = document.getElementById('report-cat-title');
+  if (catTitle) catTitle.textContent = 'Chi tiêu theo danh mục — tháng này';
+
+  const catMap = {};
+  expenses.forEach(t => { catMap[t.cat] = (catMap[t.cat]||0) + t.amount; });
+  const sorted = CATS.expense.filter(c => catMap[c.id]).sort((a,b) => catMap[b.id]-catMap[a.id]);
+
+  const cbe = document.getElementById('cat-breakdown');
+  if (sorted.length === 0) {
+    cbe.innerHTML = '<div class="empty-state"><p>Không có dữ liệu chi tiêu tháng này</p></div>';
+  } else {
+    cbe.innerHTML = sorted.map((c, idx) => {
+      const amt = catMap[c.id];
+      const pct = totalExp > 0 ? (amt/totalExp*100) : 0;
+      return `<div class="cat-row" style="margin-bottom:12px;">
+        <span style="font-size:10px; font-weight:700; color:var(--muted2); width:18px; text-align:center; flex-shrink:0;">#${idx+1}</span>
+        <span style="font-size:18px; width:24px; text-align:center; flex-shrink:0;">${c.icon}</span>
+        <div class="cat-name" style="font-weight:500;">${c.name}</div>
+        <div class="cat-bar-wrap"><div class="cat-bar" style="width:${pct}%; background:${c.color};"></div></div>
+        <div class="cat-pct" style="color:${c.color}; font-weight:700; font-size:12px; min-width:38px;">${pct.toFixed(1)}%</div>
+        <div class="cat-amount amount-display" style="font-weight:600; color:var(--text);">${fmt(amt)}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // Monthly chart — build month list based on reportRange
+  const ctx = document.getElementById('monthly-chart').getContext('2d');
+  if (monthlyChart) monthlyChart.destroy();
+
+  let months = [];
+  if (reportRange === 0) {
+    // All time: collect all months from data, sorted ascending
+    const allMonths = [...new Set(state.transactions.map(t => getMonthKey(t.date)))].sort();
+    // Ensure current month is included even if no data
+    const tm = thisMonth();
+    if (!allMonths.includes(tm)) allMonths.push(tm);
+    allMonths.sort();
+    months = allMonths;
+  } else {
+    for (let i = reportRange - 1; i >= 0; i--) {
+      const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - i);
+      months.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
+    }
+  }
+
+  const labels = months.map(m => { const[y,mo]=m.split('-'); return 'T'+mo+'/'+y.slice(2); });
+  const exps = months.map(m => state.transactions.filter(t=>getMonthKey(t.date)===m&&t.type==='expense').reduce((s,t)=>s+t.amount,0));
+  const incs = months.map(m => state.transactions.filter(t=>getMonthKey(t.date)===m&&t.type==='income').reduce((s,t)=>s+t.amount,0));
+
+  monthlyChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label:'Thu nhập', data:incs, borderColor:'#34d399', backgroundColor:'rgba(52,211,153,0.08)', fill:true, tension:0.4, pointRadius:3, pointBackgroundColor:'#34d399' },
+        { label:'Chi tiêu', data:exps, borderColor:'#f87171', backgroundColor:'rgba(248,113,113,0.08)', fill:true, tension:0.4, pointRadius:3, pointBackgroundColor:'#f87171' },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color:'#94a3b8', font:{size:11, family:'Be Vietnam Pro'}, boxWidth:9 } },
+        tooltip: { callbacks: { label: c=>' '+new Intl.NumberFormat('vi-VN').format(c.parsed.y)+' ₫' } }
+      },
+      scales: {
+        x: { ticks:{color:'#94a3b8', font:{size:10}, maxRotation: months.length > 12 ? 45 : 0}, grid:{color:'rgba(255,255,255,0.04)'} },
+        y: { ticks:{color:'#94a3b8', font:{size:10}, callback: v=>fmtShort(v)+'₫'}, grid:{color:'rgba(255,255,255,0.05)'} }
+      }
+    }
+  });
+
+  const allExp = state.transactions.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  const allInc = state.transactions.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const mset = new Set(state.transactions.map(t=>getMonthKey(t.date)));
+  const avg = mset.size > 0 ? allExp/mset.size : 0;
+  document.getElementById('report-stats').innerHTML = `
+    <div class="stat-card green"><div class="stat-label">Tổng thu nhập</div><div class="stat-value amount-display">${fmt(allInc)}</div><div class="stat-sub">Toàn thời gian</div></div>
+    <div class="stat-card red"><div class="stat-label">Tổng chi tiêu</div><div class="stat-value amount-display">${fmt(allExp)}</div><div class="stat-sub">Toàn thời gian</div></div>
+    <div class="stat-card blue"><div class="stat-label">Tiết kiệm</div><div class="stat-value amount-display">${fmt(allInc-allExp)}</div><div class="stat-sub">Toàn thời gian</div></div>
+    <div class="stat-card purple"><div class="stat-label">TB/tháng</div><div class="stat-value amount-display">${fmt(avg)}</div><div class="stat-sub">Chi tiêu trung bình</div></div>`;
+}
+
+// ===================== CATEGORY MANAGEMENT =====================
+let cmType = 'expense';
+
+function openCatModal() {
+  cmType = state.txType || 'expense';
+  setCatModalType(cmType);
+  document.getElementById('cat-modal').classList.add('open');
+}
+function closeCatModal() {
+  document.getElementById('cat-modal').classList.remove('open');
+  resetCatForm();
+  // Refresh tat ca dropdown danh muc
+  populateFormCats();
+  if (document.getElementById('m-cat')) populateCatSelect('m-cat', state.mType || 'expense');
+  if (document.getElementById('budget-cat')) populateCatSelect('budget-cat', 'expense');
+  if (document.getElementById('filter-cat')) populateCatFilter();
+  // Re-render trang dang hien thi de cap nhat bieu do va bao cao
+  refreshActivePage();
+}
+
+function setCatModalType(type) {
+  cmType = type;
+  document.getElementById('cm-tab-expense').className = 'type-tab' + (type==='expense' ? ' active expense' : '');
+  document.getElementById('cm-tab-income').className  = 'type-tab' + (type==='income'  ? ' active income' : '');
+  renderCatManageList();
+}
+
+function renderCatManageList() {
+  const list = document.getElementById('cat-manage-list');
+  const cats = CATS[cmType];
+  if (cats.length === 0) {
+    list.innerHTML = '<div style="font-size:13px; color:var(--muted); text-align:center; padding:16px 0;">Chưa có danh mục nào</div>';
+    return;
+  }
+  list.innerHTML = cats.map(c => `
+    <div class="cat-manage-item">
+      <div class="cat-icon-preview" style="background:${c.color}22; border:1px solid ${c.color}44;">${c.icon}</div>
+      <div style="flex:1;">
+        <div class="cat-manage-name">${c.name}</div>
+        <div style="font-size:10px; color:var(--muted);">ID: ${c.id}</div>
+      </div>
+      <div class="cat-manage-actions">
+        <button class="icon-btn" onclick="editCat('${c.id}')" title="Sửa">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+        <button class="icon-btn del" onclick="deleteCat('${c.id}')" title="Xóa">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+        </button>
+      </div>
+    </div>`).join('');
+}
+
+function editCat(id) {
+  const cat = CATS[cmType].find(c => c.id === id);
+  if (!cat) return;
+  document.getElementById('cm-edit-id').value = id;
+  document.getElementById('cm-icon').value = cat.icon;
+  document.getElementById('cm-name').value = cat.name;
+  document.getElementById('cm-color').value = cat.color;
+  document.getElementById('cat-form-title').textContent = '✏️ Sửa danh mục';
+  document.getElementById('cm-save-label').textContent = 'Cập nhật';
+}
+
+function resetCatForm() {
+  document.getElementById('cm-edit-id').value = '';
+  document.getElementById('cm-icon').value = '';
+  document.getElementById('cm-name').value = '';
+  document.getElementById('cm-color').value = '#34d399';
+  document.getElementById('cat-form-title').textContent = '➕ Thêm danh mục mới';
+  document.getElementById('cm-save-label').textContent = 'Thêm danh mục';
+}
+
+function saveCat() {
+  const editId = document.getElementById('cm-edit-id').value;
+  const icon = document.getElementById('cm-icon').value.trim() || '📦';
+  const name = document.getElementById('cm-name').value.trim();
+  const color = document.getElementById('cm-color').value;
+
+  if (!name) { toast('Vui lòng nhập tên danh mục!', 'error'); return; }
+
+  if (editId) {
+    // Update existing
+    const cat = CATS[cmType].find(c => c.id === editId);
+    if (cat) { cat.icon = icon; cat.name = name; cat.color = color; }
+    toast('Đã cập nhật danh mục!', 'success');
+  } else {
+    // Add new
+    const id = name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') + '_' + Date.now().toString(36);
+    CATS[cmType].push({ id, name, icon, color });
+    toast('Đã thêm danh mục!', 'success');
+  }
+  saveCatsToFirebase();
+  resetCatForm();
+  renderCatManageList();
+  // Cập nhật tất cả dropdown danh mục ngay lập tức (quan trọng trên mobile)
+  populateFormCats();
+  if (document.getElementById('m-cat')) populateCatSelect('m-cat', state.mType || 'expense');
+  if (document.getElementById('budget-cat')) populateCatSelect('budget-cat', 'expense');
+  if (document.getElementById('filter-cat')) populateCatFilter();
+  // Re-render dashboard/reports phía sau modal ngay lập tức
+  refreshActivePage();
+}
+
+function deleteCat(id) {
+  const used = state.transactions.some(t => t.cat === id);
+  if (used) {
+    if (!confirm('Danh mục này đang được dùng trong giao dịch. Vẫn xóa?')) return;
+  } else {
+    if (!confirm('Xóa danh mục này?')) return;
+  }
+  CATS[cmType] = CATS[cmType].filter(c => c.id !== id);
+  saveCatsToFirebase();
+  renderCatManageList();
+  populateFormCats();
+  if (document.getElementById('m-cat')) populateCatSelect('m-cat', state.mType || 'expense');
+  if (document.getElementById('budget-cat')) populateCatSelect('budget-cat', 'expense');
+  if (document.getElementById('filter-cat')) populateCatFilter();
+  refreshActivePage();
+  toast('Đã xóa danh mục!', 'success');
+}
+
+// ===================== DATABASE MANAGEMENT =====================
+function dbGetFilteredMonth() {
+  return document.getElementById('db-filter-month')?.value || '';
+}
+
+function dbGetFilteredTx() {
+  const m = dbGetFilteredMonth();
+  if (!m) return state.transactions;
+  return state.transactions.filter(t => getMonthKey(t.date) === m);
+}
+
+function dbPopulateMonthSelect() {
+  const sel = document.getElementById('db-filter-month');
+  if (!sel) return;
+  const curVal = sel.value;
+  sel.innerHTML = '<option value="">Tất cả thời gian</option>';
+  const months = [...new Set(state.transactions.map(t => getMonthKey(t.date)))].sort().reverse();
+  months.forEach(m => {
+    const [y, mo] = m.split('-');
+    const o = document.createElement('option');
+    o.value = m;
+    o.textContent = `Tháng ${mo}/${y}`;
+    sel.appendChild(o);
+  });
+  // Default: this month if available, else first
+  if (curVal && months.includes(curVal)) {
+    sel.value = curVal;
+  } else {
+    const tm = thisMonth();
+    sel.value = months.includes(tm) ? tm : (months[0] || '');
+  }
+}
+
+function dbSetThisMonth() {
+  const sel = document.getElementById('db-filter-month');
+  if (sel) sel.value = thisMonth();
+  renderDbPage();
+}
+
+function renderDbPage() {
+  const currentUser = sessionStorage.getItem('ct_user') || 'default';
+  const lbl = document.getElementById('db-page-user-label');
+  if (lbl) lbl.textContent = `Tài khoản: ${currentUser}`;
+
+  dbPopulateMonthSelect();
+
+  const txs = dbGetFilteredTx();
+  const monthSel = dbGetFilteredMonth();
+
+  // Stats
+  const totalExp = txs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+  const totalInc = txs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+  document.getElementById('db-stat-count').textContent = txs.length;
+  document.getElementById('db-stat-exp').textContent = fmtShort(totalExp) + ' ₫';
+  document.getElementById('db-stat-inc').textContent = fmtShort(totalInc) + ' ₫';
+
+  // Preview label
+  const prevLbl = document.getElementById('db-preview-label');
+  if (prevLbl) {
+    if (monthSel) {
+      const [y, mo] = monthSel.split('-');
+      prevLbl.textContent = `${txs.length} giao dịch trong Tháng ${mo}/${y}`;
+    } else {
+      prevLbl.textContent = `${txs.length} giao dịch — toàn bộ dữ liệu`;
+    }
+  }
+
+  // Preview list
+  const preview = document.getElementById('db-tx-preview');
+  if (!txs.length) {
+    preview.innerHTML = '<div style="padding:16px; text-align:center; font-size:13px; color:var(--muted);">Không có dữ liệu</div>';
+    return;
+  }
+  preview.innerHTML = txs.slice(0, 50).map(t => {
+    const cat = getCat(t.cat);
+    return `<div class="db-tx-row">
+      <span class="db-tx-date">${t.date}</span>
+      <span style="font-size:14px; flex-shrink:0;">${cat.icon}</span>
+      <span class="db-tx-desc">${t.desc}</span>
+      <span class="db-tx-amt ${t.type}">${t.type === 'expense' ? '-' : '+'}${fmtShort(t.amount)}₫</span>
+    </div>`;
+  }).join('') + (txs.length > 50 ? `<div style="padding:8px 12px; font-size:11px; color:var(--muted); text-align:center;">... và ${txs.length - 50} giao dịch khác</div>` : '');
+}
+
+function dbExportJson() {
+  const txs = dbGetFilteredTx();
+  const monthSel = dbGetFilteredMonth();
+  if (!txs.length) { toast('Không có dữ liệu để export!', 'error'); return; }
+  const currentUser = sessionStorage.getItem('ct_user') || 'default';
+  const payload = {
+    exportedBy: currentUser,
+    exportedAt: new Date().toISOString(),
+    period: monthSel || 'all',
+    count: txs.length,
+    transactions: txs
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const suffix = monthSel ? monthSel : 'all';
+  a.href = url;
+  a.download = `chitieu_${currentUser}_${suffix}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast(`Đã export ${txs.length} giao dịch! 📥`, 'success');
+}
+
+function dbExportAll() {
+  const currentUser = sessionStorage.getItem('ct_user') || 'default';
+  const payload = {
+    exportedBy: currentUser,
+    exportedAt: new Date().toISOString(),
+    period: 'all',
+    count: state.transactions.length,
+    transactions: state.transactions,
+    budgets: state.budgets,
+    totalBudget: state.totalBudget,
+    categories: CATS
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `chitieu_backup_${currentUser}_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast(`Backup toàn bộ ${state.transactions.length} giao dịch! 💾`, 'success');
+}
+
+function dbImportJson() {
+  document.getElementById('db-import-file').value = '';
+  document.getElementById('db-import-file').click();
+}
+
+async function dbHandleImport(input) {
+  const file = input.files[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    const txs = data.transactions || (Array.isArray(data) ? data : null);
+    if (!txs || !Array.isArray(txs)) {
+      toast('File JSON không hợp lệ!', 'error'); return;
+    }
+    const valid = txs.filter(t => t.id && t.date && t.amount && t.type);
+    if (!valid.length) { toast('Không có dữ liệu hợp lệ trong file!', 'error'); return; }
+
+    const existing = new Set(state.transactions.map(t => t.id));
+    const newTxs = valid.filter(t => !existing.has(t.id));
+    const dupCount = valid.length - newTxs.length;
+
+    if (!confirm(`Import ${valid.length} giao dịch?\n• ${newTxs.length} giao dịch mới\n• ${dupCount} trùng lặp (bỏ qua)\nTiếp tục?`)) return;
+
+    setSyncStatus('loading', 'Đang import...');
+    for (const tx of newTxs) {
+      state.transactions.push(tx);
+      await saveTxToFirebase(tx);
+    }
+    state.transactions.sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
+    saveLocal();
+    renderDbPage();
+    renderDashboard();
+    toast(`Đã import ${newTxs.length} giao dịch! 📤`, 'success');
+  } catch(e) {
+    toast('Lỗi đọc file: ' + e.message, 'error');
+  }
+}
+
+async function dbDeleteFiltered() {
+  const txs = dbGetFilteredTx();
+  const monthSel = dbGetFilteredMonth();
+  if (!txs.length) { toast('Không có dữ liệu để xóa!', 'error'); return; }
+  const label = monthSel ? `tháng ${monthSel.split('-').reverse().join('/')}` : 'đã lọc';
+  if (!confirm(`Xóa ${txs.length} giao dịch ${label}?\n⚠️ Hành động này không thể hoàn tác!`)) return;
+
+  setSyncStatus('loading', 'Đang xóa...');
+  const ids = txs.map(t => t.id);
+  for (const id of ids) {
+    state.transactions = state.transactions.filter(t => t.id !== id);
+    await deleteTxFromFirebase(id);
+  }
+  saveLocal();
+  renderDbPage();
+  renderDashboard();
+  toast(`Đã xóa ${ids.length} giao dịch!`, 'success');
+}
+
+async function dbDeleteAll() {
+  const currentUser = sessionStorage.getItem('ct_user') || 'default';
+  const count = state.transactions.length;
+  if (!count) { toast('Không có dữ liệu để xóa!', 'error'); return; }
+  const confirm1 = confirm(`⚠️ XÓA TOÀN BỘ DỮ LIỆU\n\nTài khoản: ${currentUser}\nSố giao dịch: ${count}\n\nHành động này KHÔNG THỂ hoàn tác!\nBạn có chắc chắn?`);
+  if (!confirm1) return;
+  const confirm2 = prompt(`Nhập tên tài khoản "${currentUser}" để xác nhận:`);
+  if (confirm2 !== currentUser) { toast('Xác nhận không đúng, đã hủy!', 'error'); return; }
+
+  setSyncStatus('loading', 'Đang xóa toàn bộ...');
+  const allIds = state.transactions.map(t => t.id);
+  state.transactions = [];
+  for (const id of allIds) {
+    await deleteTxFromFirebase(id);
+  }
+  state.budgets = {};
+  state.totalBudget = 0;
+  saveLocal();
+  await saveToFirebase();
+  renderDbPage();
+  renderDashboard();
+  toast(`Đã xóa toàn bộ ${count} giao dịch!`, 'success');
+}
+
+document.getElementById('cat-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeCatModal();
+});
+
+// ===================== TOAST =====================
+function toast(msg, type='success') {
+  document.querySelectorAll('.toast').forEach(t => t.remove());
+  const icons = { success:'✅', error:'❌' };
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.innerHTML = `<span>${icons[type]||'ℹ️'}</span> ${msg}`;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2800);
+}
+
+// ===================== CLOSE MODAL ON BACKDROP =====================
+document.getElementById('edit-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+// ===================== SWIPE DOWN TO CLOSE MODAL =====================
+(function() {
+  const overlay = document.getElementById('edit-modal');
+  const modal = overlay.querySelector('.modal');
+  let startY = 0;
+  modal.addEventListener('touchstart', e => { startY = e.touches[0].clientY; }, { passive: true });
+  modal.addEventListener('touchend', e => {
+    const dy = e.changedTouches[0].clientY - startY;
+    if (dy > 80) closeModal();
+  }, { passive: true });
+})();
+</script>
+</body>
+</html>
