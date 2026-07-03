@@ -534,6 +534,25 @@ canvas { max-width: 100%; }
 }
 .qa-btn:hover, .qa-btn:active { background: var(--accent-glow); color: var(--accent); border-color: rgba(52,211,153,0.3); }
 
+/* ── QUICK CATEGORY PICK ── */
+.quick-cats { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.qc-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  width: 62px; padding: 8px 4px 7px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border2);
+  border-radius: 12px;
+  color: var(--muted);
+  cursor: pointer; transition: all 0.15s;
+  font-family: 'Be Vietnam Pro', sans-serif;
+}
+.qc-btn:hover, .qc-btn:active { background: rgba(255,255,255,0.07); border-color: var(--border2); }
+.qc-icon { font-size: 18px; line-height: 1; }
+.qc-name { font-size: 9.5px; font-weight: 600; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 56px; }
+.qc-count { font-size: 8.5px; color: var(--muted2); }
+.qc-btn.active { background: var(--accent-glow); border-color: rgba(52,211,153,0.4); }
+.qc-btn.active .qc-name { color: var(--accent); }
+
 /* ── SECTION DIVIDER ── */
 .section-date {
   font-size: 11px; font-weight: 700; color: var(--muted2);
@@ -1086,7 +1105,7 @@ canvas { max-width: 100%; }
           </div>
           <div class="form-group">
             <label>Số tiền (₫) *</label>
-            <input type="number" id="f-amount" placeholder="0" min="0" inputmode="numeric">
+            <input type="text" id="f-amount" placeholder="0" inputmode="numeric" autocomplete="off" oninput="formatAmountInput(this)">
             <div class="quick-amounts">
               <button class="qa-btn" onclick="addAmount(10000)">+10K</button>
               <button class="qa-btn" onclick="addAmount(20000)">+20K</button>
@@ -1096,18 +1115,17 @@ canvas { max-width: 100%; }
               <button class="qa-btn" onclick="addAmount(500000)">+500K</button>
             </div>
           </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>Ngày *</label>
-              <input type="date" id="f-date">
-            </div>
-            <div class="form-group">
-              <label style="display:flex; align-items:center; justify-content:space-between;">
-                Danh mục
-                <button type="button" onclick="openCatModal()" style="font-size:10px; color:var(--accent); background:none; border:none; cursor:pointer; font-family:inherit; padding:0; font-weight:600;">+ Quản lý</button>
-              </label>
-              <select id="f-cat"></select>
-            </div>
+          <div class="form-group">
+            <label style="display:flex; align-items:center; justify-content:space-between;">
+              Danh mục
+              <button type="button" onclick="openCatModal()" style="font-size:10px; color:var(--accent); background:none; border:none; cursor:pointer; font-family:inherit; padding:0; font-weight:600;">+ Quản lý</button>
+            </label>
+            <div class="quick-cats" id="f-quick-cats"></div>
+            <select id="f-cat" onchange="syncQuickCatActive()"></select>
+          </div>
+          <div class="form-group">
+            <label>Ngày *</label>
+            <input type="date" id="f-date">
           </div>
           <div class="form-group">
             <label>Ghi chú (tùy chọn)</label>
@@ -1770,7 +1788,23 @@ function getThisMonthTx() {
 }
 function addAmount(v) {
   const el = document.getElementById('f-amount');
-  el.value = (parseFloat(el.value) || 0) + v;
+  const cur = parseAmountValue(el.value) || 0;
+  el.value = formatThousands(cur + v);
+}
+
+// ===================== AMOUNT FORMATTING (000,000) =====================
+function formatThousands(n) {
+  n = Math.round(n) || 0;
+  return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+function parseAmountValue(str) {
+  if (!str) return 0;
+  const digits = String(str).replace(/[^\d]/g, '');
+  return digits ? parseInt(digits, 10) : 0;
+}
+function formatAmountInput(el) {
+  const raw = parseAmountValue(el.value);
+  el.value = raw ? formatThousands(raw) : '';
 }
 
 // ===================== INIT APP =====================
@@ -1821,7 +1855,49 @@ function showPage(page) {
 }
 
 // ===================== SELECTS =====================
-function populateFormCats() { populateCatSelect('f-cat', state.txType); }
+function populateFormCats() {
+  populateCatSelect('f-cat', state.txType);
+  renderQuickCats(state.txType);
+}
+
+// ===================== QUICK CATEGORY PICK =====================
+// Đếm số lần từng danh mục được dùng trong lịch sử giao dịch (theo loại thu/chi)
+function getCatUsageCounts(type) {
+  const counts = {};
+  state.transactions.forEach(t => {
+    if (t.type === type) counts[t.cat] = (counts[t.cat] || 0) + 1;
+  });
+  return counts;
+}
+function renderQuickCats(type) {
+  const wrap = document.getElementById('f-quick-cats');
+  if (!wrap) return;
+  const counts = getCatUsageCounts(type);
+  const list = (CATS[type] || []).slice();
+  // Sắp theo số lần dùng giảm dần, danh mục chưa dùng xếp cuối (giữ thứ tự gốc)
+  list.sort((a, b) => (counts[b.id] || 0) - (counts[a.id] || 0));
+  const top5 = list.slice(0, 5);
+  wrap.innerHTML = top5.map(c => `
+    <button type="button" class="qc-btn" data-cat="${c.id}" onclick="selectQuickCat('${c.id}')" title="${c.name}">
+      <span class="qc-icon">${c.icon}</span>
+      <span class="qc-name">${c.name}</span>
+      ${counts[c.id] ? `<span class="qc-count">${counts[c.id]}x</span>` : ''}
+    </button>
+  `).join('');
+  syncQuickCatActive();
+}
+function selectQuickCat(id) {
+  const sel = document.getElementById('f-cat');
+  sel.value = id;
+  syncQuickCatActive();
+}
+function syncQuickCatActive() {
+  const sel = document.getElementById('f-cat');
+  if (!sel) return;
+  document.querySelectorAll('#f-quick-cats .qc-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.cat === sel.value);
+  });
+}
 function populateCatSelect(id, type) {
   const sel = document.getElementById(id);
   if (!sel) return;
@@ -1886,7 +1962,7 @@ function resetAddForm() {
 
 async function saveTransaction() {
   const desc = document.getElementById('f-desc').value.trim();
-  const amount = parseFloat(document.getElementById('f-amount').value);
+  const amount = parseAmountValue(document.getElementById('f-amount').value);
   const date = document.getElementById('f-date').value;
   const cat = document.getElementById('f-cat').value;
   const note = document.getElementById('f-note').value.trim();
