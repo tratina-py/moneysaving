@@ -2,14 +2,14 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Chi Tiêu Thông Minh</title>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800&family=Sora:wght@700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <!-- Firebase -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 const firebaseConfig = {
@@ -23,7 +23,7 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+let db; try { db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) }); } catch(e) { db = getFirestore(app); }
 const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 
@@ -1503,7 +1503,7 @@ function loadCats() {
       DEFAULT_CATS.income.forEach(def => {
         if (!parsed.income.find(c => c.id === def.id)) parsed.income.push(def);
       });
-      return parsed;
+      return cleanCats(parsed);
     }
   } catch(e) {}
   return JSON.parse(JSON.stringify(DEFAULT_CATS));
@@ -1532,6 +1532,8 @@ let CATS = loadCats();
 let state = {
   transactions: [],
   budgets: {},
+  recurring: [],
+  trash: [],
   totalBudget: 0,
   editId: null,
   txType: 'expense',
@@ -1577,7 +1579,7 @@ async function isAllowedUser(email) {
     return snap.exists();
   } catch(e) {
     console.error('Allowed-user check failed:', e);
-    return false;
+    return e && e.code === 'permission-denied' ? false : null;
   }
 }
 
@@ -1619,6 +1621,7 @@ async function handleAuthUser(user) {
 
   const email = user.email || '';
   const allowed = await isAllowedUser(email);
+  if (allowed === null) { showLoginError('Không kiểm tra được quyền truy cập (lỗi mạng). Vui lòng thử lại.'); document.getElementById('login-screen').classList.remove('hide'); hideLoading(); return; }
   if (!allowed) {
     showLoginError('Tài khoản "' + email + '" không được cấp quyền truy cập!');
     try { await authLib.signOut(auth); } catch(e) {}
@@ -1694,15 +1697,14 @@ async function loadFromFirebase() {
 
     // Load transactions
     const txSnap = await getDocs(collection(db, txCol));
-    state.transactions = [];
-    txSnap.forEach(d => state.transactions.push({ id: d.id, ...d.data() }));
-    state.transactions.sort((a,b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
+    applyTxDocs(txSnap);
 
     // Load settings
     const settSnap = await getDocs(collection(db, settCol));
     settSnap.forEach(d => {
       const data = d.data();
       if (d.id === 'budgets') state.budgets = data;
+      if (d.id === 'recurring') state.recurring = data.items || [];
       if (d.id === 'totalBudget') state.totalBudget = data.value || 0;
       if (d.id === 'categories' && data.expense && data.income) {
         // Merge: giữ danh mục Firebase, bổ sung mặc định mới nếu chưa có
@@ -1713,7 +1715,7 @@ async function loadFromFirebase() {
         DEFAULT_CATS.income.forEach(def => {
           if (!merged.income.find(c => c.id === def.id)) merged.income.push(def);
         });
-        CATS = merged;
+        CATS = cleanCats(merged);
         saveCatsLocal(); // đồng bộ xuống localStorage
       }
     });
@@ -1727,13 +1729,14 @@ async function loadFromFirebase() {
     setSyncStatus('ok', 'Đã đồng bộ');
     hideLoading();
     initApp();
+    injectExtras();
+    runRecurring();
     checkOldDataForMigration();
 
     // Real-time listener for transactions
-    onSnapshot(collection(db, txCol), snap => {
-      state.transactions = [];
-      snap.forEach(d => state.transactions.push({ id: d.id, ...d.data() }));
-      state.transactions.sort((a,b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
+    if (window._unsubTx) window._unsubTx();
+    window._unsubTx = onSnapshot(collection(db, txCol), snap => {
+      applyTxDocs(snap);
       refreshActivePage();
       setSyncStatus('ok', 'Đã đồng bộ');
     });
@@ -1816,7 +1819,7 @@ async function migrateOldDataToShared() {
           if (!merged[type].find(x => x.id === c.id)) merged[type].push(c);
         });
       });
-      CATS = merged;
+      CATS = cleanCats(merged);
       await saveCatsToFirebase();
     }
 
@@ -1860,7 +1863,7 @@ async function saveTxToFirebase(tx) {
   setSyncStatus('loading', 'Đang lưu...');
   try {
     const { doc, setDoc } = fbLib;
-    await setDoc(doc(db, `users_${currentUser}_transactions`, tx.id), tx);
+    await Promise.race([setDoc(doc(db, `users_${currentUser}_transactions`, tx.id), tx), new Promise(r => setTimeout(r, 4000))]);
     setSyncStatus('ok', 'Đã đồng bộ');
     saveLocal();
   } catch(e) {
@@ -1880,10 +1883,191 @@ async function deleteTxFromFirebase(id) {
     setSyncStatus('ok', 'Đã đồng bộ');
     saveLocal();
   } catch(e) {
-    console.error('Firebase delete error:', error);
+    console.error('Firebase delete error:', e);
     setSyncStatus('error', 'Lỗi xóa');
     saveLocal();
   }
+}
+
+// ===================== HELPERS (security, dates, search) =====================
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm = s => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').toLowerCase();
+function todayStr() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function cleanCats(c) {
+  ['expense','income'].forEach(t => (c[t] = c[t] || []).forEach(x => {
+    x.name = String(x.name).replace(/[<>&"'`]/g,''); x.icon = String(x.icon).replace(/[<>&"'`]/g,'').slice(0,8);
+    x.id = String(x.id).replace(/[^\w-]/g,''); if (!/^#[0-9a-f]{6}$/i.test(x.color)) x.color = '#94a3b8';
+  }));
+  return c;
+}
+function sanitizeTx(t) {
+  if (!t || typeof t !== 'object') return null;
+  const amount = Math.round(Number(t.amount));
+  if (!/^[\w-]{1,60}$/.test(String(t.id)) || !/^\d{4}-\d{2}-\d{2}$/.test(String(t.date)) || !(amount > 0) || !['expense','income'].includes(t.type)) return null;
+  return { id: String(t.id), date: t.date, amount, type: t.type, cat: String(t.cat || 'other').replace(/[^\w-]/g,'') || 'other',
+    desc: String(t.desc || '').slice(0,200) || '(không mô tả)', note: String(t.note || '').slice(0,500),
+    createdAt: Number(t.createdAt) || Date.now(), createdBy: t.createdBy ? String(t.createdBy).slice(0,80) : 'Import' };
+}
+
+// ===================== SOFT DELETE / TRASH / AUDIT =====================
+function applyTxDocs(snap) {
+  const all = []; snap.forEach(d => all.push({ id: d.id, ...d.data() }));
+  state.transactions = all.filter(t => !t.deletedAt);
+  state.trash = all.filter(t => t.deletedAt);
+  state.transactions.sort((a,b) => b.date.localeCompare(a.date) || (b.createdAt||0) - (a.createdAt||0));
+}
+async function softDeleteTx(tx) {
+  state.transactions = state.transactions.filter(t => t.id !== tx.id);
+  tx.deletedAt = Date.now(); tx.deletedBy = currentRecorderName();
+  state.trash.push(tx);
+  await saveTxToFirebase(tx);
+}
+async function restoreTx(id) {
+  const tx = state.trash.find(t => t.id === id); if (!tx) return;
+  delete tx.deletedAt; delete tx.deletedBy;
+  state.trash = state.trash.filter(t => t.id !== id);
+  state.transactions.push(tx);
+  state.transactions.sort((a,b) => b.date.localeCompare(a.date) || (b.createdAt||0) - (a.createdAt||0));
+  await saveTxToFirebase(tx); audit('restore', id);
+  refreshActivePage(); toast('Đã khôi phục!', 'success');
+}
+function renderTrash() {
+  const el = document.getElementById('trash-list'); if (!el) return;
+  const l = [...state.trash].sort((a,b) => b.deletedAt - a.deletedAt).slice(0,30);
+  el.innerHTML = l.length ? l.map(t => `<div class="db-tx-row"><span class="db-tx-date">${esc(t.date)}</span><span class="db-tx-desc">${esc(t.desc)}</span><span class="db-tx-amt ${t.type}">${fmtShort(t.amount)}₫</span><button class="btn btn-ghost" style="font-size:11px;padding:4px 8px" onclick="restoreTx('${esc(t.id)}')">Khôi phục</button></div>`).join('')
+    : '<div style="font-size:12px;color:var(--muted);padding:8px 0;">Thùng rác trống</div>';
+}
+function audit(action, txId) {
+  if (!db || !fbLib) return;
+  try { const { doc, setDoc } = fbLib; setDoc(doc(db, 'users_shared_audit', genId()), { action, txId, by: currentRecorderName(), uid: currentAuthUser?.uid || null, at: Date.now() }).catch(()=>{}); } catch(e) {}
+}
+
+// ===================== BUDGET INSIGHTS =====================
+function projHTML(spent, tb) {
+  const n = new Date(), dim = new Date(n.getFullYear(), n.getMonth()+1, 0).getDate(), d = n.getDate();
+  const proj = spent / d * dim, allow = Math.max(0, tb - spent) / (dim - d + 1);
+  const c = proj > tb ? '#f87171' : '#34d399';
+  return `<div style="font-size:12px;color:var(--muted);margin-top:4px;">Dự báo cuối tháng: <span style="color:${c};font-weight:600;">${fmt(proj)}</span> · Chi tối đa/ngày còn lại: <b>${fmt(allow)}</b></div>`;
+}
+function checkBudgetAlerts(tx) {
+  if (tx.type !== 'expense' || getMonthKey(tx.date) !== thisMonth()) return;
+  const ex = getThisMonthTx().filter(t => t.type === 'expense');
+  const chk = (name, spent, lim) => {
+    if (!lim) return;
+    const b = (spent - tx.amount) / lim, a = spent / lim, th = [1, 0.8].find(x => b < x && a >= x);
+    if (th) setTimeout(() => toast(`${name}: đã dùng ${Math.round(a*100)}% ngân sách!`, 'error'), 1600);
+  };
+  chk('Ngân sách tổng', ex.reduce((s,t) => s+t.amount, 0), state.totalBudget);
+  chk(getCat(tx.cat).name, ex.filter(t => t.cat === tx.cat).reduce((s,t) => s+t.amount, 0), state.budgets[tx.cat]);
+}
+
+// ===================== RECURRING =====================
+async function saveRecurring() {
+  if (!db || !fbLib) return;
+  try { const { doc, setDoc } = fbLib; await setDoc(doc(db, 'users_shared_settings', 'recurring'), { items: state.recurring }); } catch(e) { console.error(e); }
+}
+async function runRecurring() {
+  if (!db || !state.recurring.length) return;
+  const now = new Date(), ym = thisMonth(), dim = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+  const have = new Set([...state.transactions, ...state.trash].map(t => t.id));
+  for (const r of state.recurring) {
+    const day = Math.min(r.day, dim), id = `rec_${r.id}_${ym}`;
+    if (have.has(id) || now.getDate() < day) continue;
+    const tx = { id, desc: r.desc, amount: r.amount, date: `${ym}-${String(day).padStart(2,'0')}`, cat: r.cat, note: 'Định kỳ', type: r.type, createdAt: Date.now(), createdBy: 'Tự động' };
+    state.transactions.unshift(tx); await saveTxToFirebase(tx);
+  }
+  refreshActivePage();
+}
+async function addRecurring() {
+  const desc = document.getElementById('rc-desc').value.trim().slice(0,100);
+  const amount = parseAmountValue(document.getElementById('rc-amount').value);
+  const day = Math.min(31, Math.max(1, parseInt(document.getElementById('rc-day').value) || 1));
+  if (!desc || !amount) { toast('Nhập mô tả và số tiền!', 'error'); return; }
+  state.recurring.push({ id: genId(), desc, amount, day, type: document.getElementById('rc-type').value, cat: document.getElementById('rc-cat').value });
+  document.getElementById('rc-desc').value = ''; document.getElementById('rc-amount').value = '';
+  await saveRecurring(); renderRecurring(); runRecurring(); toast('Đã thêm giao dịch định kỳ!', 'success');
+}
+async function deleteRecurring(id) {
+  state.recurring = state.recurring.filter(r => r.id !== id);
+  await saveRecurring(); renderRecurring();
+}
+function renderRecurring() {
+  const el = document.getElementById('rc-list'); if (!el) return;
+  const sel = document.getElementById('rc-cat');
+  if (sel && !sel.options.length) populateCatSelect('rc-cat', document.getElementById('rc-type').value);
+  el.innerHTML = state.recurring.length ? state.recurring.map(r => `<div class="db-tx-row"><span class="db-tx-date">Ngày ${r.day}</span><span style="flex-shrink:0">${esc(getCat(r.cat).icon)}</span><span class="db-tx-desc">${esc(r.desc)}</span><span class="db-tx-amt ${r.type}">${fmtShort(r.amount)}₫</span><button class="icon-btn del" onclick="deleteRecurring('${esc(r.id)}')">✕</button></div>`).join('')
+    : '<div style="font-size:12px;color:var(--muted);">Chưa có giao dịch định kỳ (tiền nhà, trả nợ, lương...)</div>';
+}
+
+// ===================== QUICK ENTRY ("cafe 45k", "luong 15tr") =====================
+function parseQuick(str) {
+  const m = str.trim().match(/^(.*?)\s*(\d+(?:[.,]\d+)?)\s*(k|nghìn|nghin|tr|triệu|trieu|m)?$/i);
+  if (!m || !m[1]) return null;
+  const u = (m[3] || '').toLowerCase(), mult = (u === 'k' || u.startsWith('ngh')) ? 1e3 : u ? 1e6 : 1;
+  return { desc: m[1].trim(), amount: Math.round(parseFloat(m[2].replace(',', '.')) * mult) };
+}
+function applyQuick() {
+  const inp = document.getElementById('f-quick'), q = parseQuick(inp.value);
+  if (!q) { toast('Không hiểu — thử: cafe 45k', 'error'); return; }
+  const past = state.transactions.find(t => norm(t.desc) === norm(q.desc));
+  if (past && past.type !== state.txType) setType(past.type);
+  document.getElementById('f-desc').value = q.desc;
+  document.getElementById('f-amount').value = formatThousands(q.amount);
+  if (past) { document.getElementById('f-cat').value = past.cat; syncQuickCatActive(); }
+  inp.value = '';
+}
+
+// ===================== CSV + EXTRA REPORT =====================
+function dbExportCsv() {
+  const txs = dbGetFilteredTx();
+  if (!txs.length) { toast('Không có dữ liệu để export!', 'error'); return; }
+  const q = v => { v = String(v ?? ''); if (/^[=+\-@]/.test(v)) v = "'" + v; return '"' + v.replace(/"/g, '""') + '"'; };
+  const rows = [['Ngày','Loại','Danh mục','Mô tả','Số tiền','Ghi chú','Người ghi']].concat(txs.map(t => [t.date, t.type === 'expense' ? 'Chi' : 'Thu', getCat(t.cat).name, t.desc, t.amount, t.note || '', t.createdBy || '']));
+  const blob = new Blob(['\ufeff' + rows.map(r => r.map(q).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `chitieu_${dbGetFilteredMonth() || 'all'}.csv`; a.click(); URL.revokeObjectURL(a.href);
+  toast(`Đã export CSV ${txs.length} giao dịch!`, 'success');
+}
+function renderExtraReports() {
+  const el = document.getElementById('extra-report'); if (!el) return;
+  const cur = thisMonth(), d = new Date(); d.setDate(1); d.setMonth(d.getMonth()-1);
+  const prev = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  const ex = m => state.transactions.filter(t => t.type === 'expense' && getMonthKey(t.date) === m);
+  const sum = a => a.reduce((s,t) => s+t.amount, 0);
+  const by = {}, cm = {}, pm = {};
+  ex(cur).forEach(t => { const k = t.createdBy || 'N/A'; by[k] = (by[k]||0) + t.amount; cm[t.cat] = (cm[t.cat]||0) + t.amount; });
+  ex(prev).forEach(t => { pm[t.cat] = (pm[t.cat]||0) + t.amount; });
+  const c = sum(ex(cur)), p = sum(ex(prev)), pct = p ? Math.round((c-p)/p*100) : null;
+  const chg = [...new Set([...Object.keys(cm), ...Object.keys(pm)])].map(k => ({ k, d: (cm[k]||0) - (pm[k]||0) })).sort((a,b) => Math.abs(b.d) - Math.abs(a.d)).slice(0,3);
+  const row = (l, v) => `<div class="db-tx-row"><span class="db-tx-desc">${l}</span><span class="db-tx-amt">${v}</span></div>`;
+  el.innerHTML = `<h3 style="font-size:14px;margin-bottom:8px;">👥 Chi tiêu tháng này theo người ghi</h3>`
+    + (Object.entries(by).sort((a,b) => b[1]-a[1]).map(([k,v]) => row(esc(k), fmt(v))).join('') || '<div style="font-size:12px;color:var(--muted);">Chưa có dữ liệu</div>')
+    + `<h3 style="font-size:14px;margin:14px 0 8px;">📊 So với tháng trước ${pct === null ? '' : `(<span style="color:${pct > 0 ? '#f87171' : '#34d399'}">${pct > 0 ? '+' : ''}${pct}%</span>)`}</h3>`
+    + (chg.map(x => row(`${esc(getCat(x.k).icon)} ${esc(getCat(x.k).name)}`, `<span style="color:${x.d > 0 ? '#f87171' : '#34d399'}">${x.d > 0 ? '+' : '-'}${fmt(Math.abs(x.d))}</span>`)).join('') || '');
+}
+
+// ===================== INJECT EXTRA UI =====================
+function injectExtras() {
+  if (window._extras) return; window._extras = 1;
+  const mk = (page, html) => { const c = document.createElement('div'); c.className = 'card'; c.style.marginTop = '16px'; c.innerHTML = html; document.getElementById(page)?.appendChild(c); };
+  mk('page-budget', `<h3 style="font-size:14px;margin-bottom:10px;">🔁 Giao dịch định kỳ</h3>
+    <div class="form-group"><input type="text" id="rc-desc" placeholder="Mô tả (vd: Tiền nhà)"></div>
+    <div class="form-group"><input type="text" id="rc-amount" inputmode="numeric" placeholder="Số tiền" oninput="formatAmountInput(this)"></div>
+    <div style="display:flex;gap:8px;margin-bottom:10px;">
+      <select id="rc-type" onchange="populateCatSelect('rc-cat',this.value)"><option value="expense">Chi</option><option value="income">Thu</option></select>
+      <select id="rc-cat"></select>
+      <input type="number" id="rc-day" min="1" max="31" value="1" style="width:70px" title="Ngày trong tháng">
+    </div>
+    <button class="btn btn-primary" onclick="addRecurring()">Thêm định kỳ</button><div id="rc-list" style="margin-top:12px"></div>`);
+  mk('page-database', `<h3 style="font-size:14px;margin-bottom:8px;">🗑️ Thùng rác</h3><div id="trash-list"></div>`);
+  mk('page-reports', `<div id="extra-report"></div>`);
+  const g = document.getElementById('f-desc')?.closest('.form-group');
+  if (g) {
+    g.insertAdjacentHTML('beforebegin', `<div class="form-group"><label>⚡ Nhập nhanh</label><input type="text" id="f-quick" placeholder="vd: cafe 45k · lương 15tr (nhấn Enter)" autocomplete="off"></div>`);
+    document.getElementById('f-quick').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); applyQuick(); } });
+  }
+  document.querySelector('#page-database .db-period-bar')?.insertAdjacentHTML('beforeend', `<button class="btn btn-ghost" onclick="dbExportCsv()" style="font-size:12px;padding:7px 12px;flex-shrink:0;">CSV</button>`);
+  renderRecurring();
 }
 
 // ===================== LOCAL STORAGE FALLBACK =====================
@@ -1891,7 +2075,9 @@ function lsKey(k) {
   const u = sessionStorage.getItem('ct_user') || 'default';
   return `ct_${u}_${k}`;
 }
-function saveLocal() {
+let _slT;
+function saveLocal() { clearTimeout(_slT); _slT = setTimeout(saveLocalNow, 300); }
+function saveLocalNow() {
   try {
     localStorage.setItem(lsKey('transactions'), JSON.stringify(state.transactions));
     localStorage.setItem(lsKey('budgets'), JSON.stringify(state.budgets));
@@ -1909,6 +2095,7 @@ function loadLocal() {
 // ===================== LOADING =====================
 function hideLoading() {
   const ls = document.getElementById('loading-screen');
+  if (!ls) return;
   ls.classList.add('hide');
   setTimeout(() => ls.remove(), 400);
 }
@@ -1918,10 +2105,11 @@ function fmt(n) {
   return new Intl.NumberFormat('vi-VN').format(Math.round(n)) + ' ₫';
 }
 function fmtShort(n) {
-  if (n >= 1e9) return (n/1e9).toFixed(1) + 'T';
-  if (n >= 1e6) return (n/1e6).toFixed(1) + 'M';
-  if (n >= 1e3) return (n/1e3).toFixed(0) + 'K';
-  return n;
+  const f = (x, u) => x.toFixed(1).replace(/\.0$/, '') + u;
+  if (n >= 1e9) return f(n/1e9, 'T');
+  if (n >= 1e6) return f(n/1e6, 'M');
+  if (n >= 1e3) return Math.round(n/1e3) + 'K';
+  return String(n);
 }
 function getMonthKey(date) { return date.slice(0,7); }
 function thisMonth() {
@@ -1961,7 +2149,7 @@ function formatAmountInput(el) {
 
 // ===================== INIT APP =====================
 function initApp() {
-  document.getElementById('f-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('f-date').value = todayStr();
   setType('expense');
   renderDashboard();
 }
@@ -2104,7 +2292,7 @@ function setModalType(type) {
 function resetAddForm() {
   document.getElementById('f-desc').value = '';
   document.getElementById('f-amount').value = '';
-  document.getElementById('f-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('f-date').value = todayStr();
   document.getElementById('f-note').value = '';
   document.getElementById('add-page-title').textContent = 'Thêm giao dịch';
   document.getElementById('save-btn-text').textContent = 'Lưu giao dịch';
@@ -2136,10 +2324,11 @@ async function saveTransaction() {
     }
     toast('Đã cập nhật!', 'success');
   } else {
-    const tx = { id: genId(), desc, amount, date, cat, note, type: state.txType, createdAt: Date.now(), createdBy: currentRecorderName() };
+    const tx = { id: genId(), desc, amount, date, cat, note, type: state.txType, createdAt: Date.now(), createdBy: currentRecorderName(), createdByUid: currentAuthUser?.uid || null };
     state.transactions.unshift(tx);
     await saveTxToFirebase(tx);
     toast('Đã lưu giao dịch! ✓', 'success');
+    audit('add', tx.id); checkBudgetAlerts(tx);
   }
 
   btn.disabled = false;
@@ -2155,12 +2344,12 @@ function cancelEdit() {
 }
 
 async function deleteTransaction(id) {
-  if (!confirm('Xóa giao dịch này?')) return;
-  state.transactions = state.transactions.filter(t => t.id !== id);
-  await deleteTxFromFirebase(id);
-  renderTransactions();
-  renderDashboard();
-  toast('Đã xóa!', 'success');
+  const tx = state.transactions.find(t => t.id === id);
+  if (!tx) return;
+  if (!confirm('Chuyển giao dịch này vào thùng rác?')) return;
+  await softDeleteTx(tx); audit('delete', id);
+  renderTransactions(); renderDashboard();
+  toast('Đã xóa!', 'success', { label: 'Hoàn tác', fn: () => restoreTx(id) });
 }
 
 // ===================== EDIT MODAL =====================
@@ -2184,8 +2373,10 @@ function closeModal() {
 async function updateTransaction() {
   const tx = state.transactions.find(t => t.id === state.editId);
   if (!tx) return;
-  tx.desc   = document.getElementById('m-desc').value.trim();
-  tx.amount = parseFloat(document.getElementById('m-amount').value);
+  const nd = document.getElementById('m-desc').value.trim();
+  const na = Math.round(parseFloat(document.getElementById('m-amount').value));
+  if (!nd || !(na > 0)) { toast('Mô tả và số tiền phải hợp lệ!', 'error'); return; }
+  tx.desc = nd; tx.amount = na;
   tx.date   = document.getElementById('m-date').value;
   tx.cat    = document.getElementById('m-cat').value;
   tx.note   = document.getElementById('m-note').value.trim();
@@ -2205,17 +2396,17 @@ function txHTML(tx, showActions = true) {
   const sign = tx.type === 'expense' ? '-' : '+';
   const cls = tx.type;
   const whoLabel = tx.editedBy
-    ? `<span title="Sửa lúc ${tx.editedAt ? new Date(tx.editedAt).toLocaleString('vi-VN') : ''}" style="color:var(--muted2)">· ✏️ ${tx.editedBy}</span>`
-    : `<span style="color:var(--muted2)">· 👤 ${tx.createdBy || 'N/A'}</span>`;
+    ? `<span title="Sửa lúc ${tx.editedAt ? new Date(tx.editedAt).toLocaleString('vi-VN') : ''}" style="color:var(--muted2)">· ✏️ ${esc(tx.editedBy)}</span>`
+    : `<span style="color:var(--muted2)">· 👤 ${esc(tx.createdBy || 'N/A')}</span>`;
   return `
     <div class="tx-item">
       <div class="tx-icon" style="background:${cat.color}20;">${cat.icon}</div>
       <div class="tx-info">
-        <div class="tx-name">${tx.desc}</div>
+        <div class="tx-name">${esc(tx.desc)}</div>
         <div class="tx-meta">
           <span>${dateStr}</span>
           <span class="badge cat-${tx.cat}">${cat.name}</span>
-          ${tx.note ? `<span style="color:var(--muted2)">· ${tx.note}</span>` : ''}
+          ${tx.note ? `<span style="color:var(--muted2)">· ${esc(tx.note)}</span>` : ''}
           ${whoLabel}
         </div>
       </div>
@@ -2472,7 +2663,7 @@ function renderTrend() {
   if (trendChart) trendChart.destroy();
   const months = [];
   for (let i=5; i>=0; i--) {
-    const d = new Date(); d.setMonth(d.getMonth()-i);
+    const d = new Date(); d.setDate(1); d.setMonth(d.getMonth()-i);
     months.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
   }
   const incomes  = months.map(m => state.transactions.filter(t=>getMonthKey(t.date)===m&&t.type==='income').reduce((s,t)=>s+t.amount,0));
@@ -2504,7 +2695,7 @@ function renderTrend() {
 
 // ===================== TRANSACTIONS LIST =====================
 function renderTransactions() {
-  const search = (document.getElementById('search-input')?.value||'').toLowerCase();
+  const search = norm(document.getElementById('search-input')?.value||'');
   const fType  = document.getElementById('filter-type')?.value||'';
   const fCat   = document.getElementById('filter-cat')?.value||'';
   const fMonth = document.getElementById('filter-month')?.value||'';
@@ -2513,7 +2704,7 @@ function renderTransactions() {
     if (fType  && t.type !== fType) return false;
     if (fCat   && t.cat !== fCat) return false;
     if (fMonth && getMonthKey(t.date) !== fMonth) return false;
-    if (search && !t.desc.toLowerCase().includes(search) && !(t.note||'').toLowerCase().includes(search)) return false;
+    if (search && !norm(t.desc).includes(search) && !norm(t.note||'').includes(search)) return false;
     return true;
   });
 
@@ -2530,7 +2721,8 @@ function renderTransactions() {
 
 // ===================== BUDGET =====================
 function renderBudget() {
-  document.getElementById('total-budget-input').value = state.totalBudget || '';
+  renderRecurring();
+  const tbi = document.getElementById('total-budget-input'); if (document.activeElement !== tbi) tbi.value = state.totalBudget || '';
   populateCatSelect('budget-cat', 'expense');
 
   const txs = getThisMonthTx().filter(t => t.type === 'expense');
@@ -2547,7 +2739,7 @@ function renderBudget() {
         <span>Đã chi: ${fmt(totalExp)}</span>
         <span>${Math.round(pct)}%</span>
       </div>
-      <div style="font-size:12px; color:var(--muted); margin-top:4px;">Còn lại: <span style="color:${color}; font-weight:600;">${fmt(Math.max(0,tb-totalExp))}</span></div>`;
+      <div style="font-size:12px; color:var(--muted); margin-top:4px;">Còn lại: <span style="color:${color}; font-weight:600;">${fmt(Math.max(0,tb-totalExp))}</span></div>${projHTML(totalExp,tb)}`;
   } else {
     tbEl.innerHTML = '<div style="font-size:12px; color:var(--muted); margin-top:8px;">Chưa đặt ngân sách tổng</div>';
   }
@@ -2584,7 +2776,7 @@ function renderBudget() {
 }
 
 async function saveTotalBudget() {
-  state.totalBudget = parseFloat(document.getElementById('total-budget-input').value) || 0;
+  state.totalBudget = Math.round(parseFloat(document.getElementById('total-budget-input').value)) || 0;
   await saveToFirebase();
   renderBudget();
   renderDashboard();
@@ -2593,7 +2785,7 @@ async function saveTotalBudget() {
 
 async function saveCatBudget() {
   const cat = document.getElementById('budget-cat').value;
-  const limit = parseFloat(document.getElementById('budget-limit').value);
+  const limit = Math.round(parseFloat(document.getElementById('budget-limit').value));
   if (!limit || limit <= 0) { toast('Nhập số tiền hợp lệ!', 'error'); return; }
   state.budgets[cat] = limit;
   document.getElementById('budget-limit').value = '';
@@ -2741,6 +2933,7 @@ function renderReports() {
     <div class="stat-card blue"><div class="stat-label">Tiết kiệm</div><div class="stat-value amount-display">${fmt(allInc-allExp)}</div><div class="stat-sub">Toàn thời gian</div></div>
     <div class="stat-card purple"><div class="stat-label">TB/tháng</div><div class="stat-value amount-display">${fmt(avg)}</div><div class="stat-sub">Chi tiêu trung bình</div></div>`;
 
+  renderExtraReports();
   renderAllRecords();
 }
 
@@ -2760,7 +2953,7 @@ function renderAllRecords() {
   const listEl = document.getElementById('all-records-list');
   if (!countEl || !listEl) return;
 
-  const q = (document.getElementById('all-records-search')?.value || '').trim().toLowerCase();
+  const q = norm((document.getElementById('all-records-search')?.value || '').trim());
 
   // Populate the "who recorded" filter dropdown with the distinct set of
   // people who have created transactions, without losing the current selection.
@@ -2770,7 +2963,7 @@ function renderAllRecords() {
     const people = [...new Set(state.transactions.map(t => t.createdBy).filter(Boolean))].sort();
     const hasNA = state.transactions.some(t => !t.createdBy);
     whoSel.innerHTML = '<option value="">👥 Tất cả người ghi</option>'
-      + people.map(p => `<option value="${p}">${p}</option>`).join('')
+      + people.map(p => `<option value="${esc(p)}">${esc(p)}</option>`).join('')
       + (hasNA ? '<option value="__NA__">N/A (dữ liệu cũ)</option>' : '');
     if (curWho && (people.includes(curWho) || curWho === '__NA__')) whoSel.value = curWho;
   }
@@ -2784,10 +2977,10 @@ function renderAllRecords() {
   if (q) {
     all = all.filter(t => {
       const cat = getCat(t.cat);
-      return (t.desc || '').toLowerCase().includes(q)
-        || (t.note || '').toLowerCase().includes(q)
-        || (cat.name || '').toLowerCase().includes(q)
-        || (t.createdBy || '').toLowerCase().includes(q);
+      return norm(t.desc || '').includes(q)
+        || norm(t.note || '').includes(q)
+        || norm(cat.name || '').includes(q)
+        || norm(t.createdBy || '').includes(q);
     });
   }
 
@@ -2896,6 +3089,7 @@ function saveCat() {
     CATS[cmType].push({ id, name, icon, color });
     toast('Đã thêm danh mục!', 'success');
   }
+  cleanCats(CATS);
   saveCatsToFirebase();
   resetCatForm();
   renderCatManageList();
@@ -2911,7 +3105,7 @@ function saveCat() {
 function deleteCat(id) {
   const used = state.transactions.some(t => t.cat === id);
   if (used) {
-    if (!confirm('Danh mục này đang được dùng trong giao dịch. Vẫn xóa?')) return;
+    toast('Danh mục đang được dùng — hãy chuyển các giao dịch sang danh mục khác trước!', 'error'); return;
   } else {
     if (!confirm('Xóa danh mục này?')) return;
   }
@@ -2966,6 +3160,7 @@ function dbSetThisMonth() {
 }
 
 function renderDbPage() {
+  renderTrash();
   const currentUser = sessionStorage.getItem('ct_user') || 'default';
   const lbl = document.getElementById('db-page-user-label');
   const whoAmI = (currentAuthUser && (currentAuthUser.displayName || currentAuthUser.email)) || currentUser;
@@ -3005,7 +3200,7 @@ function renderDbPage() {
     return `<div class="db-tx-row">
       <span class="db-tx-date">${t.date}</span>
       <span style="font-size:14px; flex-shrink:0;">${cat.icon}</span>
-      <span class="db-tx-desc">${t.desc}</span>
+      <span class="db-tx-desc">${esc(t.desc)}</span>
       <span class="db-tx-amt ${t.type}">${t.type === 'expense' ? '-' : '+'}${fmtShort(t.amount)}₫</span>
     </div>`;
   }).join('') + (txs.length > 50 ? `<div style="padding:8px 12px; font-size:11px; color:var(--muted); text-align:center;">... và ${txs.length - 50} giao dịch khác</div>` : '');
@@ -3050,7 +3245,7 @@ function dbExportAll() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `chitieu_backup_${currentUser}_${new Date().toISOString().slice(0,10)}.json`;
+  a.download = `chitieu_backup_${currentUser}_${todayStr()}.json`;
   a.click();
   URL.revokeObjectURL(url);
   toast(`Backup toàn bộ ${state.transactions.length} giao dịch! 💾`, 'success');
@@ -3071,7 +3266,7 @@ async function dbHandleImport(input) {
     if (!txs || !Array.isArray(txs)) {
       toast('File JSON không hợp lệ!', 'error'); return;
     }
-    const valid = txs.filter(t => t.id && t.date && t.amount && t.type);
+    const valid = txs.map(sanitizeTx).filter(Boolean);
     if (!valid.length) { toast('Không có dữ liệu hợp lệ trong file!', 'error'); return; }
 
     const existing = new Set(state.transactions.map(t => t.id));
@@ -3104,10 +3299,7 @@ async function dbDeleteFiltered() {
 
   setSyncStatus('loading', 'Đang xóa...');
   const ids = txs.map(t => t.id);
-  for (const id of ids) {
-    state.transactions = state.transactions.filter(t => t.id !== id);
-    await deleteTxFromFirebase(id);
-  }
+  for (const tx of [...txs]) await softDeleteTx(tx);
   saveLocal();
   renderDbPage();
   renderDashboard();
@@ -3120,15 +3312,11 @@ async function dbDeleteAll() {
   if (!count) { toast('Không có dữ liệu để xóa!', 'error'); return; }
   const confirm1 = confirm(`⚠️ XÓA TOÀN BỘ DỮ LIỆU\n\nTài khoản: ${currentUser}\nSố giao dịch: ${count}\n\nHành động này KHÔNG THỂ hoàn tác!\nBạn có chắc chắn?`);
   if (!confirm1) return;
-  const confirm2 = prompt(`Nhập tên tài khoản "${currentUser}" để xác nhận:`);
-  if (confirm2 !== currentUser) { toast('Xác nhận không đúng, đã hủy!', 'error'); return; }
+  const confirm2 = prompt('Dữ liệu dùng chung của tất cả mọi người! Gõ XOA để xác nhận (có thể khôi phục từ Thùng rác):');
+  if (confirm2 !== 'XOA') { toast('Xác nhận không đúng, đã hủy!', 'error'); return; }
 
   setSyncStatus('loading', 'Đang xóa toàn bộ...');
-  const allIds = state.transactions.map(t => t.id);
-  state.transactions = [];
-  for (const id of allIds) {
-    await deleteTxFromFirebase(id);
-  }
+  for (const tx of [...state.transactions]) await softDeleteTx(tx);
   state.budgets = {};
   state.totalBudget = 0;
   saveLocal();
@@ -3143,14 +3331,16 @@ document.getElementById('cat-modal').addEventListener('click', function(e) {
 });
 
 // ===================== TOAST =====================
-function toast(msg, type='success') {
+function toast(msg, type='success', act) {
   document.querySelectorAll('.toast').forEach(t => t.remove());
-  const icons = { success:'✅', error:'❌' };
   const t = document.createElement('div');
-  t.className = `toast ${type}`;
-  t.innerHTML = `<span>${icons[type]||'ℹ️'}</span> ${msg}`;
+  t.className = `toast ${type}`; t.style.pointerEvents = 'auto';
+  const i = document.createElement('span'); i.textContent = ({success:'✅', error:'❌'})[type] || 'ℹ️';
+  const m = document.createElement('span'); m.textContent = ' ' + msg;
+  t.append(i, m);
+  if (act) { const b = document.createElement('button'); b.textContent = act.label; b.style.cssText = 'margin-left:10px;background:none;border:0;color:#34d399;font-weight:700;cursor:pointer'; b.onclick = () => { act.fn(); t.remove(); }; t.append(b); }
   document.body.appendChild(t);
-  setTimeout(() => t.remove(), 2800);
+  setTimeout(() => t.remove(), act ? 5000 : 2800);
 }
 
 // ===================== CLOSE MODAL ON BACKDROP =====================
